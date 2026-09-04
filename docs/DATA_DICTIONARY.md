@@ -26,8 +26,31 @@ per chunk (a few hundred words of source text + its embedding).
 | `source_type` | Provenance: `official_pyq` / `ai_generated` / `coaching_derived` / `self_notes` (same enum as Scribe's draft migrations m059-m063) |
 | `verified_by` | Who confirmed this content is accurate (nullable until reviewed) |
 | `reviewed_at` | When it was verified (nullable) |
+| `section_id` | FK → `sections.section_id` — the parent this chunk belongs to (DECIDE-14) |
+| `tags` | JSON dict — ad hoc extension metadata, no schema migration needed to add a new key (DECIDE-09) |
+| `is_current` / `superseded_by` | Hard supersession flag for time-sensitive content (DECIDE-11) |
+| `context_prefix` | The short LLM-written blurb prepended before embedding (DECIDE-13/Contextual Retrieval) — stored separately from `content` so citations point to real source text, not the blurb |
 
-FTS index built on `content` for hybrid search (dense + BM25, fused via RRF).
+FTS index built on `content` (contextualized version, i.e. `context_prefix` + `content`) for
+hybrid search (dense + BM25, fused via RRF).
+
+### `sections` (in `core.db`, not LanceDB)
+The parent-document layer for auto-merging retrieval (DECIDE-14). One row per Stage-1
+markdown-header section (before the chunker's Stage-2 recursive sub-split) — NOT the whole
+source document, to keep merged context within a sane token range.
+
+| Field | Meaning |
+|---|---|
+| `section_id` | PK |
+| `doc_id` | Which source document this section came from |
+| `exam_id`, `topic_id`, `content_type` | Same FKs as `chunks` |
+| `heading` | The markdown header text |
+| `full_text` | The complete section text — what gets returned when chunks are auto-merged |
+| `page_start`, `page_end` | Page range this section spans |
+
+At retrieval: if ≥2 top-ranked chunks share a `section_id`, the engine substitutes this
+section's `full_text` for those chunks (budget permitting) instead of returning disjoint
+fragments.
 
 ---
 

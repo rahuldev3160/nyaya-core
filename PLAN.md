@@ -10,7 +10,7 @@ is the living version — update it as phases complete or scope shifts.
       `tags: dict` extension field + `is_current`/`superseded_by` — DECIDE-09/11),
       `TextChunk`, `PYQQuestion` (mcq/descriptive discriminated, same `tags` field)
 - [ ] `data/core.db` init: `exams`, `papers`, `topics`, `content_types`, `pyq_bank`,
-      `chunk_tags` (EAV side table, DECIDE-09)
+      `chunk_tags` (EAV side table, DECIDE-09), `sections` (parent-document layer, DECIDE-14)
 - [ ] Seed registry rows for exams that already exist elsewhere: `upsc_prelims_gs`,
       `upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_opt` — plus
       placeholder rows for `upsc_law_optional`/`upsc_eco_optional` (ASSUME-01)
@@ -18,14 +18,23 @@ is the living version — update it as phases complete or scope shifts.
 
 ## Phase 1 — Ingestion + auto-labeling
 - Header-aware two-stage chunker (markdown-header split + recursive fallback, page numbers
-  preserved) — replaces Recall's flat word-slider; required for Law/Econ integrity
-- Auto-labeling: generalize `ingest_pyq.py`'s Haiku classify-batch pattern to detect
-  content_type + exam/paper/topic_id, for both prose and PYQs (Mains and MCQ)
-- Ollama `nomic-embed-text` embeddings
+  preserved) — replaces Recall's flat word-slider; required for Law/Econ integrity. Stage-1
+  header sections are persisted to the new `sections` table (DECIDE-14) — each Stage-2 chunk
+  carries `section_id` back to its parent.
+- **One combined Haiku call per chunk** (cost control, DECIDE-13): generalizes
+  `ingest_pyq.py`'s classify-batch pattern to do THREE things in one shot — (a) detect
+  content_type + exam/paper/topic_id (existing auto-labeling scope), (b) write the
+  Contextual Retrieval blurb (`context_prefix`, DECIDE-13) using cached full-document
+  context, (c) for PYQs, the existing question extraction. Use prompt caching (same document
+  → many chunk calls) to keep this affordable.
+- Ollama `nomic-embed-text` embeddings — embed `context_prefix + content`, not raw content
+  alone (that's the point of Contextual Retrieval).
 - Incremental/resumable ingestion (hash-based skip-list, same pattern as Recall's
   `ingestion_log.json`) so re-running ingest after new uploads only processes new files
 - `published_date` captured at ingest time where derivable (filename year, doc metadata,
-  or explicit CLI flag for a batch)
+  or explicit CLI flag for a batch); `is_current`/`superseded_by` set when a newer doc for
+  the same topic/indicator is ingested (DECIDE-11)
+- Cost/usage logging on every ingestion batch (Haiku calls add up — surface it, don't guess)
 
 ## Phase 2 — Hybrid retrieval + API
 - `LocalHybridEngine`: dense (LanceDB vector) + BM25 (LanceDB FTS) + RRF(k=60) + FlashRank
@@ -42,15 +51,16 @@ is the living version — update it as phases complete or scope shifts.
 - Trust-weighted grounding: `source_type = ai_generated` chunks are deprioritized/excluded
   from grounding by default (don't let AI output silently become "ground truth" for more
   generation).
-- FastAPI: `/search` (hybrid chunk query, budget param), `/pyq` (structured bank query by
-  exam/paper/topic/year/format), `/exams`, `/topics?exam_id=`, `/papers?exam_id=`
-  (DECIDE-12), `/topic/{topic_id}/brief` (composite: top explanation chunks + mcq_pyqs +
-  mains_pyqs for that topic — the "explain X + give PYQs" use case), `/ingest` (admin-only,
-  local)
+- **Auto-merging** (DECIDE-14): after rerank, if ≥2 top chunks share a `section_id`, fetch
+  that `sections.full_text` and substitute it for those chunks in the returned context,
+  trimming to individual chunks if the merge would exceed the caller's budget (DECIDE-08).
+- FastAPI: `/search` (hybrid chunk query, budget param, auto-merge applied), `/pyq`
+  (structured bank query by exam/paper/topic/year/format), `/exams`, `/topics?exam_id=`,
+  `/papers?exam_id=` (DECIDE-12), `/topic/{topic_id}/brief` (composite: top explanation
+  chunks + mcq_pyqs + mains_pyqs for that topic — the "explain X + give PYQs" use case),
+  `/verify_citation` (claim + chunk_id → entailment check, DECIDE-15 — consumer opts in per
+  call, not run automatically), `/ingest` (admin-only, local)
 - `scripts/inventory.py` — prints live counts per exam/paper/topic/content_type
-- **Pending Rahul's call (AUDIT-001 Q1/Q2/Q3) before finalizing this phase:** Contextual
-  Retrieval at ingest time, parent-document/auto-merging retrieval, citation-verification
-  aggressiveness.
 
 ## Phase 3 — Migrate + cut over Recall
 - Re-ingest Recall's content root + `pyq_questions` through the new pipeline from source
@@ -73,6 +83,9 @@ is the living version — update it as phases complete or scope shifts.
 - Rewire `generate_answers.py` to read local synced chunks for all exams
 - Merge draft migrations m059-m063, aligning `source_type` values to Nyaya Core's enum
 - `model_answers.data_points[].source` becomes a real citation (source_doc + page_number)
+- Since this is exactly the high-stakes, cache-forever generation DECIDE-15 targets:
+  `generate_answers.py` calls `/verify_citation` on generated claims before insertion —
+  Recall's cheap/frequent MCQ-drill generation does not
 
 ## Phase 5 — New UX hooks
 - Scribe: "read a concept" browse view over synced `document_chunks`, with page citations

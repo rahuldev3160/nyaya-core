@@ -38,6 +38,11 @@ Two linked stores, joined by a shared `topic_id` (not free text — see DECIDE-0
      recency boost.
    - `pyq_bank` — one table for both Mains and MCQ questions (`question_format` discriminator).
      Carries `topic_id` (FK, same registry as chunks).
+   - `sections` — the parent-document layer for auto-merging retrieval (DECIDE-14): one row
+     per chunker Stage-1 header-section, holding the full section text chunks merge back
+     into when several top-ranked chunks share one.
+   - `chunk_tags` — EAV side table (chunk_id, tag_key, tag_value) for ad hoc extensible
+     indexing (DECIDE-09) without a schema migration.
 
 ## System boundaries
 - **Owns:** ingestion, chunking, labeling, embeddings, hybrid search, the PYQ bank, the

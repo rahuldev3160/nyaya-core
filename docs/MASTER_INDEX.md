@@ -19,10 +19,9 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-11](decisions.md#decide-11) — `is_current`/`superseded_by` hard flag for time-sensitive content
 - [DECIDE-12](decisions.md#decide-12) — Browse endpoints (`/topics`, `/papers` by exam) added to API
 
-## Pending decisions (need Rahul's call — see AUDIT-001)
-- **Q1** — Adopt Contextual Retrieval (Anthropic technique, ingest-time Haiku cost, 35-67% fewer retrieval failures)?
-- **Q2** — Adopt parent-document/auto-merging retrieval (structural fix for "content too short," real schema commitment)?
-- **Q3** — How aggressive should citation-verification be (full entailment check vs. sampled high-stakes-only)?
+- [DECIDE-13](decisions.md#decide-13) — Adopt Contextual Retrieval (Q1: yes)
+- [DECIDE-14](decisions.md#decide-14) — Adopt parent-document/auto-merging retrieval from Phase 2 (Q2: yes)
+- [DECIDE-15](decisions.md#decide-15) — Citation verification sampled, high-stakes only (Q3)
 
 ## Bugs
 _(none yet — Phase 0, no code running)_
@@ -44,4 +43,4 @@ _(none yet — Phase 0, no code running)_
 
 ---
 
-**Next available IDs:** DECIDE-13 · BUG-01 · RESEARCH-06 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-16 · BUG-01 · RESEARCH-06 · RISK-04 · ASSUME-02

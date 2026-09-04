@@ -1,10 +1,14 @@
 # Project HANDOFF
 
 ## Exact next step
-Phase 0 continuing: write `src/schema/models.py` (Pydantic — `ChunkMetadata`, `TextChunk`,
-`PYQQuestion`), then `scripts/init_db.py` (creates `data/core.db` with `exams`/`papers`/
-`topics`/`content_types`/`pyq_bank`, seeds the registry rows listed in PLAN.md Phase 0),
-then port `scripts/parsers/` from `../Devthorium/scripts/parsers/` verbatim.
+All 3 open architecture questions are now resolved (DECIDE-13/14/15 — Contextual Retrieval:
+yes, parent-document/auto-merging retrieval: yes, citation verification: sampled/high-stakes
+only). PLAN.md Phase 0-4 fully reflects the final design. Phase 0 code, not yet written:
+write `src/schema/models.py` (Pydantic — `ChunkMetadata` incl. `section_id`/`tags`/
+`is_current`/`superseded_by`/`context_prefix`, `TextChunk`, `PYQQuestion`), then
+`scripts/init_db.py` (creates `data/core.db` with `exams`/`papers`/`topics`/`content_types`/
+`pyq_bank`/`sections`/`chunk_tags`, seeds the registry rows listed in PLAN.md Phase 0), then
+port `scripts/parsers/` from `../Devthorium/scripts/parsers/` verbatim.
 
 ## Open items
 - Phase 0 not yet complete — no schema code, no DB, no parsers ported yet as of this entry.

@@ -142,6 +142,50 @@ already-planned `/exams` and `/topic/{id}/brief`.
 **Rationale:** "Navigable" was a stated requirement; the original API list only had
 whole-registry listing and one composite lookup, no way to drill down exam → papers → topics.
 
+### DECIDE-13 — Adopt Contextual Retrieval {#decide-13}
+**Date:** 2026-09-04 | **Session:** S2 | **Status:** Active
+
+**Decision:** Every chunk gets a short (50-100 token) LLM-generated context blurb prepended
+before embedding (Anthropic's technique, RESEARCH-02). Combined into the same ingest-time
+Haiku call that already does content_type/topic classification (Phase 1), not a separate
+call, to control cost. Raw chunk content is stored separately from the contextualized
+(embedded) version — citations should point to the real source text, not the blurb.
+**Rationale:** Rahul's explicit go-ahead. Proven 35-49% fewer retrieval failures, 67%
+combined with reranking (already planned). One-time ingest cost, zero query-time cost.
+
+### DECIDE-14 — Adopt parent-document/auto-merging retrieval from Phase 2 {#decide-14}
+**Date:** 2026-09-04 | **Session:** S2 | **Status:** Active
+
+**Decision:** Build the section-hierarchy now, not retrofit later. New `sections` table in
+`core.db` (section_id, doc_id, exam_id, topic_id, content_type, heading, full_text,
+page_start, page_end) — the parent is the chunker's Stage-1 markdown-header split (before
+Stage-2 recursive sub-splitting), not the whole source document, so merged context stays
+within a sane token range. Each `chunks` row carries `section_id` (FK). At retrieval: if
+≥2 top-ranked chunks share a `section_id`, the engine returns that section's full text
+instead of the disjoint chunks, budget permitting (DECIDE-08) — trims to individual chunks
+if merging would exceed the caller's budget.
+**Rationale:** Rahul's explicit go-ahead — structural fix for the confirmed "content too
+short" bug (AUDIT-001 §2), cheaper to design into the schema now than retrofit once
+chunks/pyq_bank rows already exist without parent linkage.
+**Rejected:** Flat top-k-only retrieval (simpler, no schema change) — rejected per Rahul's
+choice; the bug already happened once and the schema cost of fixing it now is small.
+
+### DECIDE-15 — Citation verification: sampled, high-stakes only {#decide-15}
+**Date:** 2026-09-04 | **Session:** S2 | **Status:** Active
+
+**Decision:** Full claim-vs-source entailment verification is NOT run on every generation.
+It's invoked selectively by the consumer for high-stakes, low-volume, cache-forever calls
+(Scribe's Mains model-answer generation) — never for cheap, high-volume calls (Recall's MCQ
+drills). Nyaya Core exposes a reusable verification helper (`/verify_citation`: claim +
+chunk_id → entailment yes/no); consumers opt in per call.
+**Rationale:** Rahul's explicit choice, matches the existing cost-scaling pattern already
+used elsewhere in his projects (Haiku for cheap/frequent, Sonnet for expensive/rare —
+`generate_answers.py`, `MainsEvaluator`). Full verification on everything would add an LLM
+call to every single MCQ-drill generation, disproportionate cost for low-stakes output.
+**Rejected:** Full verification everywhere (safest, rejected as disproportionate cost) and
+no verification at all (cheapest, rejected as leaving hallucinated citations unchecked
+where it matters most — Mains answers Rahul actually studies from).
+
 ### ASSUME-01 — Law/Econ Optional sourcing deferred {#assume-01}
 **Date:** 2026-09-04 | **Session:** S1
 
