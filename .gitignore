@@ -1,0 +1,10 @@
+.env
+data/lancedb/
+data/core.db
+data/*.log
+ingestion_log.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

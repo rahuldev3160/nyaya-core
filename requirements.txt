@@ -1,0 +1,15 @@
+pydantic>=2.0
+lancedb
+ollama
+flashrank
+fastapi
+uvicorn
+pdfplumber
+pdf2image
+pytesseract
+python-docx
+beautifulsoup4
+lxml
+anthropic
+python-dotenv
+tqdm
