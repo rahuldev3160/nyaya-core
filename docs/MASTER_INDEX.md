@@ -24,7 +24,7 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-15](decisions.md#decide-15) — Citation verification sampled, high-stakes only (Q3)
 
 ## Bugs
-_(none yet — Phase 0, no code running)_
+- [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
 
 ## Research
 - [RESEARCH-01](research.md#research-01) — LanceDB reliability & concurrency
@@ -43,4 +43,4 @@ _(none yet — Phase 0, no code running)_
 
 ---
 
-**Next available IDs:** DECIDE-16 · BUG-01 · RESEARCH-06 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-16 · BUG-02 · RESEARCH-06 · RISK-04 · ASSUME-02
