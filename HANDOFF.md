@@ -15,6 +15,21 @@ then port `scripts/parsers/` from `../Devthorium/scripts/parsers/` verbatim.
   project until he supplies PDFs.
 
 ## Session log
+**2026-09-04 (S2):** Rahul asked for an audit of S1's docs against 6 criteria (universal/
+navigable, sufficient retrieval size, extensible indexing, vector reliability, latency,
+hallucination) plus research into further architecture options. Researched (WebSearch, real
+sources, see docs/research.md RESEARCH-01–05) LanceDB reliability, Anthropic's Contextual
+Retrieval technique, embedding model choice, parent-document retrieval, and 2026 hallucination
+mitigation practice. Found and root-caused a real bug: Scribe's `generate_answers.py`
+truncates chunks to 400 chars — confirms Rahul's "explanations too short" complaint. Wrote
+`docs/AUDIT-001-architecture-review.md` with findings + fixes. Adopted 5 new decisions
+(DECIDE-08–12: caller-supplied retrieval budget, no mid-chunk truncation, extensible
+tags/EAV field, score floor + explicit no-grounding signal, is_current/superseded_by hard
+flag, browse endpoints) directly — no real tradeoff. **3 open questions need Rahul's
+decision before Phase 2 is finalized: adopt Contextual Retrieval? adopt parent-document/
+auto-merging retrieval? how aggressive should citation verification be?** See AUDIT-001
+bottom section. PLAN.md updated to reflect all of the above.
+
 **2026-09-04 (S1):** Project created from scratch this session. Investigated Recall
 (Devthorium) and Scribe (Descriptive-exams) codebases to ground a spec doc's gap analysis;
 scope expanded during planning into this standalone platform. Plan approved via plan mode

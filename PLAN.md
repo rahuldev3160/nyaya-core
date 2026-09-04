@@ -6,9 +6,11 @@ is the living version — update it as phases complete or scope shifts.
 
 ## Phase 0 — Foundation (in progress)
 - [x] Repo scaffold, docs/ audit system, FOUNDATION.md, DATA_DICTIONARY.md
-- [ ] Pydantic schemas: `ChunkMetadata` (with provenance + topic_id FK + published_date),
-      `TextChunk`, `PYQQuestion` (mcq/descriptive discriminated)
-- [ ] `data/core.db` init: `exams`, `papers`, `topics`, `content_types`, `pyq_bank`
+- [ ] Pydantic schemas: `ChunkMetadata` (with provenance + topic_id FK + published_date +
+      `tags: dict` extension field + `is_current`/`superseded_by` — DECIDE-09/11),
+      `TextChunk`, `PYQQuestion` (mcq/descriptive discriminated, same `tags` field)
+- [ ] `data/core.db` init: `exams`, `papers`, `topics`, `content_types`, `pyq_bank`,
+      `chunk_tags` (EAV side table, DECIDE-09)
 - [ ] Seed registry rows for exams that already exist elsewhere: `upsc_prelims_gs`,
       `upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_opt` — plus
       placeholder rows for `upsc_law_optional`/`upsc_eco_optional` (ASSUME-01)
@@ -27,14 +29,28 @@ is the living version — update it as phases complete or scope shifts.
 
 ## Phase 2 — Hybrid retrieval + API
 - `LocalHybridEngine`: dense (LanceDB vector) + BM25 (LanceDB FTS) + RRF(k=60) + FlashRank
-  rerank (top 15 → top 4)
-- Recency boost: for chunks/PYQs whose `content_type.is_time_sensitive` is true, blend a
-  mild recency term into ranking (DECIDE-07) — not a hard filter, evergreen content unaffected
-- FastAPI: `/search` (hybrid chunk query), `/pyq` (structured bank query by exam/paper/
-  topic/year/format), `/exams` (registry), `/topic/{topic_id}/brief` (composite: top
-  explanation chunks + mcq_pyqs + mains_pyqs for that topic — the "explain X + give PYQs"
-  use case), `/ingest` (admin-only, local)
+  rerank. **`k`/token-budget is a caller-supplied param, not a hardcoded default**
+  (DECIDE-08) — batch calls (model-answer generation) request a generous budget, interactive
+  calls (topic browse) request a small one. Never truncate a chunk mid-content to fit a
+  budget — drop whole lower-ranked chunks instead.
+- **Score floor** (DECIDE-10): chunks below a similarity/rerank threshold are excluded; if
+  nothing clears it, return an explicit "insufficient grounding" result, never a silent
+  fallback to ungrounded generation.
+- Recency: soft boost for `content_type.is_time_sensitive` chunks (DECIDE-07), **plus** a
+  hard `is_current`/`superseded_by` exclusion once a newer source supersedes an older one
+  for the same topic/indicator (DECIDE-11).
+- Trust-weighted grounding: `source_type = ai_generated` chunks are deprioritized/excluded
+  from grounding by default (don't let AI output silently become "ground truth" for more
+  generation).
+- FastAPI: `/search` (hybrid chunk query, budget param), `/pyq` (structured bank query by
+  exam/paper/topic/year/format), `/exams`, `/topics?exam_id=`, `/papers?exam_id=`
+  (DECIDE-12), `/topic/{topic_id}/brief` (composite: top explanation chunks + mcq_pyqs +
+  mains_pyqs for that topic — the "explain X + give PYQs" use case), `/ingest` (admin-only,
+  local)
 - `scripts/inventory.py` — prints live counts per exam/paper/topic/content_type
+- **Pending Rahul's call (AUDIT-001 Q1/Q2/Q3) before finalizing this phase:** Contextual
+  Retrieval at ingest time, parent-document/auto-merging retrieval, citation-verification
+  aggressiveness.
 
 ## Phase 3 — Migrate + cut over Recall
 - Re-ingest Recall's content root + `pyq_questions` through the new pipeline from source
