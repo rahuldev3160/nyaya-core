@@ -22,6 +22,7 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-13](decisions.md#decide-13) — Adopt Contextual Retrieval (Q1: yes)
 - [DECIDE-14](decisions.md#decide-14) — Adopt parent-document/auto-merging retrieval from Phase 2 (Q2: yes)
 - [DECIDE-15](decisions.md#decide-15) — Citation verification sampled, high-stakes only (Q3)
+- [DECIDE-16](decisions.md#decide-16) — Seeded one `upsc_eco_opt` row, not a second `upsc_eco_optional` placeholder (flag to Rahul)
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
@@ -43,4 +44,4 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 
 ---
 
-**Next available IDs:** DECIDE-16 · BUG-02 · RESEARCH-06 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-17 · BUG-02 · RESEARCH-06 · RISK-04 · ASSUME-02

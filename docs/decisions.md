@@ -192,3 +192,19 @@ where it matters most — Mains answers Rahul actually studies from).
 Rahul will source Law Optional and Economics Optional PDFs himself, later. Schema
 (`exams`/`papers` registry rows) is ready from Phase 0; ingestion is deferred until source
 material exists. Not a blocker for Phases 0-4.
+
+### DECIDE-16 — Seeded one `upsc_eco_opt` row, not a second `upsc_eco_optional` placeholder {#decide-16}
+**Date:** 2026-09-05 | **Session:** S3 | **Status:** Active — flag to Rahul
+
+**Decision:** PLAN.md Phase 0's registry list names `upsc_eco_opt` under "exams that already
+exist elsewhere" AND separately lists `upsc_eco_optional` under the ASSUME-01 placeholder
+group. Both plausibly refer to UPSC Mains Economics Optional. Rather than seed two rows for
+what may be the same exam, `scripts/init_db.py` seeds `upsc_eco_opt` only (as an
+already-exists row) and seeds `upsc_law_optional` as the sole ASSUME-01 placeholder.
+**Rationale:** Seeding a row is cheap and reversible (it's a registry INSERT, not a schema
+choice) — safer to under-seed and add a row later than to seed a possibly-duplicate exam_id
+that would need cleanup once real content surfaces which one Rahul actually meant.
+**Needs Rahul's confirmation:** are `upsc_eco_opt` and `upsc_eco_optional` the same exam, or
+two distinct ones (e.g. IES-adjacent Economics content vs. UPSC CSE Economics Optional)? If
+distinct, add the second registry row before Phase 1 ingestion touches Economics Optional
+content.

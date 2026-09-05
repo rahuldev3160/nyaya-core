@@ -4,17 +4,22 @@ Full context and rationale: `docs/FOUNDATION.md`, `docs/decisions.md`. Original 
 plan snapshot: `~/.claude/plans/sequential-herding-scone.md` (session 2026-09-04). This file
 is the living version — update it as phases complete or scope shifts.
 
-## Phase 0 — Foundation (in progress)
+## Phase 0 — Foundation (complete)
 - [x] Repo scaffold, docs/ audit system, FOUNDATION.md, DATA_DICTIONARY.md
-- [ ] Pydantic schemas: `ChunkMetadata` (with provenance + topic_id FK + published_date +
+- [x] Pydantic schemas: `ChunkMetadata` (with provenance + topic_id FK + published_date +
       `tags: dict` extension field + `is_current`/`superseded_by` — DECIDE-09/11),
-      `TextChunk`, `PYQQuestion` (mcq/descriptive discriminated, same `tags` field)
-- [ ] `data/core.db` init: `exams`, `papers`, `topics`, `content_types`, `pyq_bank`,
+      `TextChunk`, `PYQQuestion` (mcq/descriptive discriminated, same `tags` field) —
+      `src/schema/models.py`
+- [x] `data/core.db` init: `exams`, `papers`, `topics`, `content_types`, `pyq_bank`,
       `chunk_tags` (EAV side table, DECIDE-09), `sections` (parent-document layer, DECIDE-14)
-- [ ] Seed registry rows for exams that already exist elsewhere: `upsc_prelims_gs`,
-      `upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_opt` — plus
-      placeholder rows for `upsc_law_optional`/`upsc_eco_optional` (ASSUME-01)
-- [ ] Port `scripts/parsers/` from Devthorium verbatim (7 files, proven, format-agnostic)
+      — `scripts/init_db.py`
+- [x] Seed registry rows for exams that already exist elsewhere: `upsc_prelims_gs`,
+      `upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_opt` — plus a
+      placeholder row for `upsc_law_optional` (ASSUME-01). **DECIDE-16: did not seed a
+      second `upsc_eco_optional` placeholder — needs Rahul's confirmation whether it's
+      distinct from `upsc_eco_opt` before Phase 1 touches Economics Optional content.**
+- [x] Port `scripts/parsers/` from Devthorium verbatim (7 files, proven, format-agnostic)
+      — `src/ingestion/parsers/`, import surface verified against all 7 functions
 
 ## Phase 1 — Ingestion + auto-labeling
 - Header-aware two-stage chunker (markdown-header split + recursive fallback, page numbers
