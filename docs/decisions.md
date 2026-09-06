@@ -193,18 +193,214 @@ Rahul will source Law Optional and Economics Optional PDFs himself, later. Schem
 (`exams`/`papers` registry rows) is ready from Phase 0; ingestion is deferred until source
 material exists. Not a blocker for Phases 0-4.
 
-### DECIDE-16 — Seeded one `upsc_eco_opt` row, not a second `upsc_eco_optional` placeholder {#decide-16}
-**Date:** 2026-09-05 | **Session:** S3 | **Status:** Active — flag to Rahul
+### DECIDE-16 — `upsc_eco_opt`/`upsc_eco_optional` are the same exam; standardized on `upsc_eco_optional` {#decide-16}
+**Date:** 2026-09-05 (opened, S3) | **Resolved:** 2026-09-06 (S4) | **Status:** Closed
 
-**Decision:** PLAN.md Phase 0's registry list names `upsc_eco_opt` under "exams that already
-exist elsewhere" AND separately lists `upsc_eco_optional` under the ASSUME-01 placeholder
-group. Both plausibly refer to UPSC Mains Economics Optional. Rather than seed two rows for
-what may be the same exam, `scripts/init_db.py` seeds `upsc_eco_opt` only (as an
-already-exists row) and seeds `upsc_law_optional` as the sole ASSUME-01 placeholder.
-**Rationale:** Seeding a row is cheap and reversible (it's a registry INSERT, not a schema
-choice) — safer to under-seed and add a row later than to seed a possibly-duplicate exam_id
-that would need cleanup once real content surfaces which one Rahul actually meant.
-**Needs Rahul's confirmation:** are `upsc_eco_opt` and `upsc_eco_optional` the same exam, or
-two distinct ones (e.g. IES-adjacent Economics content vs. UPSC CSE Economics Optional)? If
-distinct, add the second registry row before Phase 1 ingestion touches Economics Optional
-content.
+**Decision:** Confirmed by Rahul — one exam, not two. Renamed the seeded row from
+`upsc_eco_opt` to `upsc_eco_optional` (zero dependent rows existed yet in `topics`/
+`papers`/`sections`/`pyq_bank`, so this was a clean rename, not a migration) for naming
+consistency with the other UPSC Mains optional paper, `upsc_law_optional` — both now spell
+"optional" out fully rather than one abbreviating to "opt". `scripts/init_db.py` updated to
+match, so a fresh clone seeds the correct id.
+**Original open question (S3):** PLAN.md Phase 0's registry list named `upsc_eco_opt` under
+"exams that already exist elsewhere" AND separately listed `upsc_eco_optional` under the
+ASSUME-01 placeholder group — plausibly the same exam. Seeded only one rather than risk a
+duplicate registry row; flagged rather than guessed.
+
+### DECIDE-17 — `exam_id` is ingestion-run-scoped, not Haiku-classified per chunk {#decide-17}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** `sections.exam_id` is `NOT NULL` and gets written at Stage-1 chunking time —
+before the Haiku enrichment call that classifies `content_type`/`topic_id` runs. Rather than
+require exam detection before enrichment exists, `exam_id` is a parameter supplied by the
+ingestion caller (the folder being ingested IS the exam scope — matches CLAUDE.md's "a new
+exam is a row... drop PDFs in a folder + run ingest" model), never something an LLM infers
+per chunk. Only `topic_id`/`content_type` on `sections` are nullable and get backfilled
+after the first chunk in that section is classified.
+**Rationale:** Checked the ancestor pattern this generalizes from — Devthorium's
+`ingest_pyq.py:classify_batch()` classifies `subject_id`/`topic_id`/`subtopic_id` within one
+already-known exam; it never classifies which exam a document belongs to. Devthorium never
+needed to, being single-exam. Nyaya Core is multi-exam, but the exam is still known ambient
+context (which folder you pointed the ingester at), not a property of chunk content that
+needs inference — a UPSC Prelims GS passage and a RBI Grade B passage can look identical in
+isolation.
+**Rejected:** Having Haiku classify `exam_id` per chunk too — rejected because exam scope is
+already known before ingestion starts (nobody drops mixed-exam PDFs in one folder), so
+inferring it from content would add cost and a failure mode (misclassification) for a value
+that's never actually ambiguous at ingest time.
+
+### DECIDE-18 — Seed `topics` from Devthorium's real syllabus.json, not Haiku-invented strings {#decide-18}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Phase 0 left the `topics` table empty. Rather than let the Haiku enrichment
+call invent topic_id strings per chunk (Devthorium's `ingest_pyq.py` ancestor pattern does
+exactly this for topic_id/subtopic_id, only subject_id is a closed set), `scripts/
+seed_topics.py` imports Devthorium's existing `data/syllabus.json` (subject > topic >
+subtopic, 3 levels via `parent_topic_id`) into `topics` for `upsc_prelims_gs` — 271 rows.
+The enrichment prompt is given this closed candidate list and told to pick from it or
+return null, never invent a new id.
+**Rationale:** DECIDE-04 already established `topic_id` as a registry FK, not free text —
+letting an LLM freely generate it per chunk would reintroduce exactly the inconsistent-
+naming problem DECIDE-04 exists to prevent (e.g. "fundamental_rights" vs "fundamental_right"
+as two different topic_ids across chunks), silently breaking the "one topic query pulls both
+grounding chunks and PYQs" guarantee. The 4th level in syllabus.json (`dimension`) is
+PYQ-weighting granularity from Devthorium's own `priority_scorer.py` — a different concern
+from retrieval topic granularity — so it's not imported as a `topics` row.
+**Open:** only `upsc_prelims_gs` has a real taxonomy source right now. The other 7 seeded
+exams (`upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_optional`,
+`upsc_law_optional`) have zero topics — `load_topics()` in `src/ingestion/enrich.py` raises
+`ReviewNeededError` rather than silently proceeding if asked to enrich content for an exam
+with no seeded taxonomy. Per Rule 2 (verify before building), not inventing a UPSC
+Ethics/Essay/IES/RBI taxonomy from training knowledge — needs a real source (Rahul, or a
+fetched official syllabus) before those exams' content can be ingested. **Superseded in
+part by DECIDE-19** — IES and RBI Grade B turn out to already have real, usable taxonomies
+sitting in Descriptive-exams' own databases (`ies.db`/`rbi.db`), not something to generate;
+see DECIDE-19.
+
+### DECIDE-19 — `topics` made exam-agnostic; `exam_topics` junction table added (resolves DECIDE-32) {#decide-19}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Rahul raised, independently, the exact cross-exam topic-sharing question that
+had sat pending since 2026-06 as Descriptive-exams' `AUDIT-008` `DECIDE-32` — "should
+'Monetary Policy' in IES/RBI point to one canonical entity in `nyaya.db master_topics`?"
+`topics.exam_id NOT NULL` (as originally built in Phase 0) had silently answered "no"
+without that ever being an explicit decision. Fixed: `topics` (`topic_id`, `name`,
+`parent_topic_id`) is now exam-agnostic — one canonical entity per real-world concept. A new
+`exam_topics` junction table (`exam_id`, `topic_id`, `weight`, `is_core`) says which exams a
+topic is relevant to and how much. `chunks.topic_id`/`pyq_bank.topic_id` are unaffected —
+still a single FK into `topics`, DECIDE-04 untouched. `src/ingestion/enrich.py`'s
+`load_topics()` now joins through `exam_topics`; `scripts/seed_topics.py` inserts into both
+tables, additionally capturing each subject's real `avg_questions_per_year` (from
+Devthorium's syllabus.json) as `exam_topics.weight` — previously dropped entirely.
+**Rationale (researched, not asserted):** real precedent for "one canonical entity, reused
+across multiple classification systems via a mapping/crosswalk table" — O*NET's
+occupation↔ESCO crosswalks, general relational-DB many-to-many practice (junction table
+carrying the relationship's own attributes, never entity duplication), and 2026 RAG
+knowledge-base practice (controlled taxonomy + relationship layer, not per-source
+duplication) all converge on this shape. Migrated with zero data loss (271 existing rows,
+`scripts/migrate_002_topics_exam_agnostic.py`) since zero chunks/PYQs existed yet to
+reference the old shape — the cheapest point this could ever be fixed.
+**Payoff:** an RBI monetary-policy chunk ingested once becomes retrievable for IES prep too,
+the moment IES's real taxonomy (already sitting in `ies.db`, not yet imported) also links to
+that same `topic_id` — zero re-ingestion, zero duplicate Haiku enrichment cost.
+**Rejected:** a full concept graph/ontology — real-world precedent (RAG knowledge-base
+practice) explicitly favors a controlled taxonomy + junction/crosswalk layer over full graph
+modeling at this scale; graph traversal complexity buys nothing a single-user, ~9-exam
+system needs today.
+
+### DECIDE-20 — 4 State PCS exams registered; `seed_topics.py` extended for reuse-plus-new-branch {#decide-20}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Rahul is targeting 8 State PCS exams; real eligibility research (RESEARCH-08)
+found 4 immediately feasible (UP, Himachal, Uttarakhand, MP — open to non-domicile
+candidates, no disqualifying language requirement), 1 blocked by his own stated condition
+(Gujarat — Gujarati is a compulsory qualifying Mains paper), 1 needing more verification
+before ruling in/out (Maharashtra — sources disagree on whether Marathi-at-10th-standard is
+a hard eligibility bar), 1 structurally uncertain (Haryana — sources disagree on whether
+Mains still has an optional subject), and 1 not-yet-applicable (Rajasthan RAS — the live
+2026 cycle's application window already passed; this would target a future cycle). Only the
+4 confirmed-feasible exams were registered and seeded this session, per Rahul's explicit
+"go for feasible ones for now."
+
+Registered `uppcs`, `hpas`, `ukpsc`, `mppsc` in `exams` (scripts/init_db.py). Each state's
+real research showed the same pattern: Prelims/Mains GS content overlaps `upsc_prelims_gs`'s
+existing taxonomy heavily (history, geography, polity, economy, environment, science,
+current affairs, CSAT), plus one genuinely state-specific branch (state history/dynasties/
+movements/geography/culture) with no existing canonical topic. This is exactly DECIDE-19's
+payoff — extended `scripts/seed_topics.py` to accept a `reused_topics` list (link-only,
+creates zero new topic rows) alongside the existing `subjects` shape (creates new topic
+rows) in one file. Verified: "polity" is now one canonical row linked to 5 exams via
+`exam_topics`, not duplicated 5 times — `topics` grew by only the genuinely new
+state-specific rows (85 new), not 4× the shared content.
+
+New state-specific taxonomy content (`data/syllabi/{uppcs,hpas,ukpsc,mppsc}.json`) was
+hand-curated from real per-state syllabus research (coaching-site aggregation of official
+syllabi — Drishti IAS, PW, StudyIQ, etc. — not the primary official PDF text itself,
+disclosed in each file's `_source_note`). Granularity varies honestly by how much real
+detail existed in the sources found — Uttarakhand's is richest (named dynasties, named
+popular movements; UKPSC's own materials state ≥1/3 of Prelims questions reference the
+state directly, the heaviest state-weighting found among the 4), Himachal's is thinnest.
+**Open:** Haryana/Maharashtra/Rajasthan need the specific unresolved questions answered
+before any taxonomy work starts for them (see RESEARCH-08). Gujarat is out per Rahul's own
+stated condition.
+
+### DECIDE-21 — Finalized `exam_id`/`paper_id` naming convention; restructured UPSC exams into papers {#decide-21}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Rahul flagged a real inconsistency with concrete examples: `upsc_eco_optional`
+doesn't say which UPSC exam (CSE vs EPFO vs IES vs CAPF), and a hypothetical `rbi_eco`
+wouldn't say whether it means RBI Grade B's general economics section or RBI DEPR's. Asked
+for 3-4 researched naming options before finalizing. Presented 4 (flat-but-explicit,
+two-level using the schema as designed, explicit-level-segment, and enterprise registry
+codes), grounded in real precedent — Common Core's fixed-hierarchy dot notation, ISCED's
+hierarchical education codes, and standard DB practice that a child entity's key shouldn't
+repeat its parent's identity. Rahul chose the two-level option.
+
+**Root cause found while presenting options:** the ambiguity wasn't really a string-format
+problem — `essay`, `ethics`, `upsc_mains_gs`, `upsc_eco_optional`, and `upsc_law_optional`
+had all been modeled as separate top-level EXAMS in Phase 0, when they're really PAPERS of
+one exam (UPSC's Civil Services Examination). The `papers` table existed for exactly this
+and had zero rows. Confirmed with Rahul before touching it (bigger change than a rename) —
+approved.
+
+**What changed** (`scripts/migrate_003_exam_paper_restructure.py`, already run against the
+live `data/core.db`, zero data loss — only `upsc_prelims_gs` had real dependent data, 271
+`exam_topics` rows):
+- `exam_id` = `{institution}_{exam}` — the actual exam a candidate applies to, never a paper
+  within it. Renamed `ies` → `upsc_ies`, `rbi_grade_b` → `rbi_gradeb`. Added `rbi_depr`
+  (placeholder — Rahul referenced it as a real, distinct RBI exam).
+- Merged `upsc_prelims_gs`/`upsc_mains_gs`/`essay`/`ethics`/`upsc_eco_optional`/
+  `upsc_law_optional` into one `upsc_cse` exam with 8 `papers` rows (`prelims_gs`,
+  `mains_gs1`-`mains_gs4`, `essay`, `eco_optional`, `law_optional`) — `mains_gs` was split
+  into the 4 real, materially-different GS papers rather than kept as one blob, since
+  nothing depended on the old undifferentiated shape (zero data loss to lose).
+- `papers`' PK became the **pair** `(exam_id, paper_id)`, not `paper_id` alone — `paper_id`
+  never needs to repeat its exam's identity (`essay`, not `upsc_cse_essay`), same reasoning
+  DECIDE-19 already established for `topic_id` not repeating its exam's identity.
+- `exam_topics` gained a `paper_id` column (default `'_all'` sentinel — a real string, not
+  NULL, since SQLite treats every NULL as distinct for uniqueness and would silently break
+  idempotent re-seeding). Necessary the moment papers share an exam_id: without it, a
+  document from `upsc_cse`'s Essay paper would see Prelims-only topics (`modern_history`,
+  `polity`) as valid classification candidates just because they share an `exam_id`. State
+  PCS exams and `rbi_gradeb`/`upsc_ies`'s non-GE content stay at `'_all'` — accurate, not
+  wrong, since no paper-level content exists for them yet.
+- `pyq_bank`'s FK became composite `(exam_id, paper_id) REFERENCES papers(exam_id, paper_id)`.
+- `src/ingestion/enrich.py::load_topics()` gained an optional `paper_id` param;
+  `build_chunk_metadata`/`build_pyq`/`enrich_chunk` now populate `ChunkMetadata.paper_id`/
+  `PYQBase.paper_id` (previously always `None`, a real gap this closed as a side effect).
+  `scripts/ingest.py` gained `--paper-id`; `scripts/seed_topics.py` gained `--paper-id`
+  (default `'_all'`).
+- Added `topics.notes` (nullable free-text) — needed once RBI's real curator notes (e.g.
+  "Mundell-Fleming appeared TWICE in 2024") needed a home; deliberately NOT `chunk_tags`
+  (keyed by real chunk_id, a different entity than a topic).
+
+**Then imported IES + RBI Grade B's real taxonomies** (`scripts/import_ies_rbi_taxonomy.py`,
+no new research needed — RESEARCH-07 already found these sitting unused in
+Descriptive-exams' `ies.db`/`rbi.db`): 156 IES topics across real `ge_01`-`ge_04` papers,
+29 RBI topics + 9 subject-groupings. Checked for `topic_id` collisions against the existing
+316 topics before importing — zero found, imported as-is.
+**Rejected:** Option 1 (rename in place, keep separate exams) — would have left the deeper
+exam/paper conflation unfixed. Option 3 (explicit level segment, `upsc_cse_mains_essay`) —
+redundant once `papers` properly scopes by `exam_id`; the level info lives in the paper's
+own `name` field, not its id. Option 4 (registry codes) — not human-readable, wrong fit for
+a system Rahul is meant to eyeball and debug himself.
+
+### DECIDE-22 — Added `institutions` table (real join target, not just an id prefix) {#decide-22}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Rahul asked whether the naming rules themselves are tracked anywhere usable
+for real SQL querying/joining, not just documentation a person reads. Answer, made explicit
+in `docs/DATA_DICTIONARY.md`'s new "Rules vs. data" section: the *grammar* for constructing
+an id (DECIDE-21) is documentation — nothing ever runs a query to fetch a naming rule, a
+person applies it when adding a row. But "institution" itself was a real, missing
+*dimension* — only present as an unqueryable string prefix inside `exam_id`. Added
+`institutions` (`institution_id` PK, `name`) and `exams.institution_id` (FK). "Every exam
+UPSC conducts" is now `JOIN institutions`, not `exam_id LIKE 'upsc_%'`. Seeded for all 8
+exams — `upsc`/`rbi` conduct 2 each; each State PCS exam's own commission (`uppsc`, `hppsc`,
+`ukpsc`, `mppsc`) is its own institution (UP/HP have a distinct commission-vs-exam acronym;
+UK/MP's commission acronym doubles as the exam reference too — a real asymmetry in common
+usage, not modeled inconsistently).
+**Rejected:** Storing the naming rule text itself in a database table — a rule isn't data
+anything queries at runtime; it's exactly the kind of institutional knowledge
+`docs/decisions.md`/`MASTER_INDEX.md` already exist to track, and a second copy would just
+be something to keep in sync for no benefit.

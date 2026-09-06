@@ -1,0 +1,33 @@
+{
+  "_source_note": "State-specific branch hand-curated from real UPPSC syllabus research (RESEARCH-08, 2026-09-06) — coaching-aggregated secondary sources (Drishti IAS, PW, testbook), not the primary official PDF text directly. Topic-level granularity, not full subtopic decomposition. Generic GS content (history, geography, polity, economy, environment, science, current affairs) overlaps upsc_prelims_gs heavily and is linked via reused_topics, not re-created.",
+  "reused_topics": [
+    "polity", "history_amac", "modern_history", "geography", "economy",
+    "environment", "science_tech", "current_affairs", "ir_governance", "csat"
+  ],
+  "subjects": [
+    {
+      "id": "up_specific",
+      "name": "Uttar Pradesh Specific",
+      "topics": [
+        {
+          "id": "up_history_culture",
+          "name": "History, Culture, Art & Architecture of UP",
+          "subtopics": [
+            {"id": "up_festivals_folk_dance", "name": "Festivals, Folk Dance & Regional Languages of UP"},
+            {"id": "up_heritage_literature", "name": "Heritage Sites & Literature of UP"},
+            {"id": "up_freedom_movement", "name": "UP in the Indian Freedom Movement"}
+          ]
+        },
+        {
+          "id": "up_geography_economy",
+          "name": "Geography, Resources & Economy of UP",
+          "subtopics": [
+            {"id": "up_rivers_agriculture", "name": "Rivers, Agriculture & Irrigation of UP"},
+            {"id": "up_natural_resources_mines", "name": "Natural Resources, Mines & Minerals of UP"},
+            {"id": "up_climate_soils_forests", "name": "Climate, Soils, Forests & Wildlife of UP"}
+          ]
+        }
+      ]
+    }
+  ]
+}

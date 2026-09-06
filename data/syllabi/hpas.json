@@ -1,0 +1,32 @@
+{
+  "_source_note": "State-specific branch hand-curated from real HPPSC/HPAS syllabus research (RESEARCH-08, 2026-09-06) — coaching-aggregated secondary sources (StudyIQ, Sleepy Classes, PW), not the primary official PDF text directly. Topic-level granularity. Generic GS content overlaps upsc_prelims_gs heavily and is linked via reused_topics, not re-created.",
+  "reused_topics": [
+    "polity", "history_amac", "modern_history", "geography", "economy",
+    "environment", "science_tech", "current_affairs", "ir_governance", "csat"
+  ],
+  "subjects": [
+    {
+      "id": "hp_specific",
+      "name": "Himachal Pradesh Specific",
+      "topics": [
+        {
+          "id": "hp_history_polity",
+          "name": "History & Polity of Himachal Pradesh",
+          "subtopics": []
+        },
+        {
+          "id": "hp_geography_culture",
+          "name": "Geography, Art & Culture of Himachal Pradesh",
+          "subtopics": [
+            {"id": "hp_local_languages", "name": "Local Languages & Regional Identity of Himachal Pradesh"}
+          ]
+        },
+        {
+          "id": "hp_socioeconomic_development",
+          "name": "Socio-economic Development of Himachal Pradesh",
+          "subtopics": []
+        }
+      ]
+    }
+  ]
+}

@@ -43,6 +43,12 @@ shows what's actually indexed right now — run that, don't guess from the dicti
   registry FK, never free text (DECIDE-04).
 - `exams`/`papers`/`topics`/`content_types` are data-driven tables. A new exam is a row,
   never a code change, a new `Literal` value, or a hardcoded dict entry.
+- **Naming (DECIDE-21):** `exam_id` = `{institution}_{exam}`, always the actual exam a
+  candidate applies to, never a paper/subject within it — "UPSC" alone is never a full
+  `exam_id` (UPSC runs CSE, IES, EPFO, CAPF...). `paper_id` is short and un-prefixed, scoped
+  by `exam_id` via a composite key (`papers`' PK is `(exam_id, paper_id)`) — it never repeats
+  the exam/institution identity. Full checklist in `docs/DATA_DICTIONARY.md`'s Naming
+  conventions section — read it before registering any new exam.
 - Chunking must never split a statute Article/Section or a math derivation/equation/table
   across a chunk boundary (Law/Econ Optional invariants from the source spec).
 - Ingestion is incremental and idempotent — re-running after new uploads must only process

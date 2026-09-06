@@ -3,8 +3,9 @@ import tempfile
 import os
 
 
-def extract_text(filepath: str) -> str:
-    """Convert Apple .pages file to text using macOS textutil (built-in)."""
+def extract_text(filepath: str) -> list[tuple[int, str]]:
+    """Convert Apple .pages file to text using macOS textutil (built-in). No fixed page
+    concept before rendering — single (1, text) page, see docx_parser.py (BUG-02)."""
     with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
         tmp_path = tmp.name
     try:
@@ -15,7 +16,7 @@ def extract_text(filepath: str) -> str:
         if result.returncode != 0:
             raise RuntimeError(f"textutil error: {result.stderr}")
         with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
-            return f.read()
+            return [(1, f.read())]
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)

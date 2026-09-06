@@ -56,17 +56,48 @@ fragments.
 
 ## SQLite — `data/core.db`
 
+### `institutions`
+The real, queryable conducting-body dimension (DECIDE-22). `institution_id` (PK), `name`.
+`exam_id`'s `{institution}_{exam}` naming (DECIDE-21) is a convention for humans reading an
+id — this table is what makes "every exam UPSC conducts" a real `JOIN`, not a fragile
+`exam_id LIKE 'upsc_%'` string match:
+```sql
+SELECT e.exam_id, e.name FROM exams e
+JOIN institutions i ON e.institution_id = i.institution_id
+WHERE i.institution_id = 'upsc';
+```
+
 ### `exams`
-One row per exam. `exam_id` (PK), `name`, `created_at`. Adding a new exam = one INSERT,
-no code change.
+One row per exam. `exam_id` (PK), `institution_id` (FK → `institutions`), `name`,
+`created_at`. Adding a new exam = one INSERT, no code change.
 
 ### `papers`
-One row per paper within an exam. `paper_id` (PK), `exam_id` (FK), `name`. Nullable link
-for exams without a paper concept.
+One row per paper within an exam. PK is the **pair** `(exam_id, paper_id)` (DECIDE-21) —
+`paper_id` alone is deliberately not globally unique, so "essay" can mean UPSC CSE's Essay
+paper and, later, some other exam's Essay paper without collision — a child entity's key
+shouldn't have to repeat its parent's identity. Not every exam has papers registered yet
+(e.g. the 4 State PCS exams and `rbi_gradeb`/`upsc_ies`'s non-GE papers) — that's fine,
+`exam_topics.paper_id` just stays at the `'_all'` sentinel until real paper-level content
+shows up.
 
 ### `topics`
-The shared topic vocabulary. `topic_id` (PK), `exam_id` (FK), `name`, `parent_topic_id`
-(nullable, for subtopic nesting). This is the join key between `chunks` and `pyq_bank`.
+The shared, **exam-agnostic** topic vocabulary (DECIDE-19 — resolves DECIDE-32). `topic_id`
+(PK), `name`, `parent_topic_id` (nullable, for subtopic nesting), `notes` (nullable
+free-text — curator observations a source had, e.g. "Mundell-Fleming appeared TWICE in
+2024"; NOT the `chunk_tags` EAV table, which is keyed by real chunk_id, a different
+entity). A topic is a canonical real-world concept, not owned by any one exam — this is the
+join key between `chunks` and `pyq_bank` (DECIDE-04), and it's what lets one RBI
+monetary-policy chunk also ground IES prep, once both exams' `exam_topics` link to the same
+`topic_id`.
+
+### `exam_topics`
+Junction table: which exam (and optionally which paper within it) a topic is relevant to,
+and how much. `exam_id` + `paper_id` + `topic_id` (composite PK), `weight` (e.g. real PYQ
+frequency where known — see `scripts/seed_topics.py`), `is_core` (boolean). `paper_id`
+defaults to the sentinel `'_all'` (exam-wide, not one specific paper) — DECIDE-21, needed
+once a single exam_id can have multiple papers (e.g. `upsc_cse`'s Essay paper shouldn't see
+Prelims-only topics as valid classification candidates just because they share an exam_id).
+A topic used by only one exam just has one row here — reuse costs nothing to not have.
 
 ### `content_types`
 Registry of document *kinds*, independent of exam/topic. `type_id` (PK), `name`
@@ -91,6 +122,23 @@ One table for both question formats, discriminated by `question_format`.
 
 ---
 
+## Rules vs. data — where each actually lives
+Two different things can be meant by "tracking a convention," and they're deliberately kept
+in different places:
+- **Real dimensions other queries need to join/filter/group on** — which institution runs
+  an exam, which exam a paper belongs to, which topics an exam cares about — live as actual
+  rows in `institutions`/`exams`/`papers`/`exam_topics`. These are queryable today with
+  plain SQL (see `institutions`' example above); no separate registry needed, because they
+  already are one.
+- **The grammar for constructing a new id** ("exam_id = institution_exam", "paper_id is
+  short and scoped by its exam", "topic_id is globally unique snake_case, no institution
+  prefix") is documentation, not data — nothing at runtime needs to `SELECT` a naming rule,
+  a person (or a future Claude session) needs to *apply* it correctly when adding a new
+  registry row. It lives here, in this section, and in `CLAUDE.md`'s Critical invariants —
+  the same place `docs/decisions.md`/`MASTER_INDEX.md` already track every other design
+  decision. Duplicating prose rules into a database table would add a second copy to keep in
+  sync for no query anything would ever run.
+
 ## Naming conventions
 - `*_id` fields are always the FK/PK pattern; never a display name.
 - `content_type` vs `topic` are **independent axes** — a chunk's `content_type` says what
@@ -98,3 +146,21 @@ One table for both question formats, discriminated by `question_format`.
   it's about. Don't conflate them.
 - `source_type` is about **trust/provenance** (was this verified, AI-generated, official) —
   a third, independent axis from both of the above.
+- **`exam_id` = `{institution}_{exam}`, always the actual exam a candidate applies to, never
+  a paper/subject within it** (DECIDE-21). "UPSC" alone is never a full `exam_id` — UPSC
+  runs CSE, IES, EPFO, CAPF, etc., each a genuinely different exam
+  (`upsc_cse`, `upsc_ies`, ...). Institution codes so far: `upsc`, `rbi`; bare state-name
+  codes for State PCS since each state has exactly one relevant PCS exam
+  (`uppcs`, `hpas`, `ukpsc`, `mppsc`).
+- **`paper_id` is short and un-prefixed, scoped by its exam via a composite key** — never
+  repeats the exam/institution identity (`essay`, not `upsc_cse_essay`). The pattern is
+  `papers`' PK = `(exam_id, paper_id)`; anywhere else `paper_id` appears (`pyq_bank`,
+  `exam_topics`, `ChunkMetadata`), `exam_id` is always present alongside it, so the pair is
+  what actually identifies a paper — same reasoning as why `topic_id` doesn't need an exam
+  prefix (DECIDE-19).
+- New exam checklist (so this stays consistent as exams are added): (1) confirm the real
+  conducting institution and the exam's own name — don't assume "UPSC" is specific enough;
+  (2) `exam_id` = institution_exam, both short lowercase codes; (3) if the exam has multiple
+  distinct papers with materially different content, register them in `papers` with short
+  paper_ids, not as separate exam_ids; (4) if none exist yet, that's fine — `exam_topics`
+  defaults to `'_all'` until real paper-level content arrives.

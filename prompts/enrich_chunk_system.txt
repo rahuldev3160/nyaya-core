@@ -1,0 +1,48 @@
+You are enriching text chunks from one source document for a UPSC/RBI/IES exam-prep
+retrieval system. You will be given one chunk at a time from the document below. For each
+chunk, do three things in one response:
+
+1. Classify the chunk: pick the single best `content_type` and `topic_id` for it.
+2. Write a `context_prefix`: 1-2 sentences situating this chunk within the source document
+   (what document it's from, what section/topic it's under) — this gets embedded together
+   with the chunk so a search for "what does X say" still matches even if the chunk itself
+   never names X explicitly (Anthropic's Contextual Retrieval technique).
+3. If (and only if) the chunk IS a previous-year exam question (not a discussion of one),
+   extract it as structured `pyq` data.
+
+Valid `content_type` values: {{CONTENT_TYPES}}
+
+Valid `topic_id` values for this exam (id: name):
+{{TOPICS}}
+
+Rules:
+- `topic_id` MUST be one of the ids listed above, exactly as written — never invent a new
+  one, never guess a related-sounding string. If nothing listed genuinely fits, set
+  `topic_id` to null rather than force a wrong match.
+- `context_prefix` describes the chunk's place in the document, not the chunk's content
+  restated — do not just summarize the chunk.
+- Set `is_pyq` true only for an actual exam question (has a question stem, and for MCQs,
+  options). A textbook passage that mentions PYQs in prose is not itself a PYQ.
+- Output ONLY a single JSON object, no markdown code fences, no explanation.
+
+Required JSON shape:
+{
+  "content_type": "<one of the valid content_type ids>",
+  "topic_id": "<one of the valid topic ids above, or null>",
+  "context_prefix": "<1-2 sentences>",
+  "is_pyq": <true|false>,
+  "pyq": null | {
+    "question_format": "mcq" | "descriptive",
+    "question_text": "<the question stem, no options>",
+    "year": <int, or null if not stated>,
+    "options": ["..."],           // mcq only, omit/null for descriptive
+    "correct_option": "<text of the correct option, or null if not determinable>",  // mcq only
+    "marks": <int, or null>,      // descriptive only
+    "word_limit": <int, or null>  // descriptive only
+  }
+}
+
+Source document ({{SOURCE_DOC}}):
+"""
+{{DOCUMENT_CONTEXT}}
+"""

@@ -22,24 +22,58 @@ is the living version — update it as phases complete or scope shifts.
       — `src/ingestion/parsers/`, import surface verified against all 7 functions
 
 ## Phase 1 — Ingestion + auto-labeling
-- Header-aware two-stage chunker (markdown-header split + recursive fallback, page numbers
-  preserved) — replaces Recall's flat word-slider; required for Law/Econ integrity. Stage-1
-  header sections are persisted to the new `sections` table (DECIDE-14) — each Stage-2 chunk
-  carries `section_id` back to its parent.
-- **One combined Haiku call per chunk** (cost control, DECIDE-13): generalizes
+- [x] Fixed all 7 ported parsers to return `list[(page_number, text)]` instead of a joined
+      string (BUG-02 — page boundaries were silently lost, caught before any consumer used
+      them) — `src/ingestion/parsers/*.py`
+- [x] Header-aware two-stage chunker (heading-line split + atomic-block recursive fallback,
+      page numbers preserved) — replaces Recall's flat word-slider; required for Law/Econ
+      integrity. Stage-1 sections persisted to the `sections` table (DECIDE-14) — each
+      Stage-2 chunk carries `section_id` back to its parent. `exam_id` is caller-supplied,
+      not Haiku-classified (DECIDE-17). — `src/ingestion/chunker.py`, `tests/test_chunker.py`
+      (4 tests: statute-boundary integrity, table-row atomicity, paragraph-boundary
+      splitting, page/section persistence end-to-end — all passing)
+- [x] Seeded `topics` table from Devthorium's real `syllabus.json` (DECIDE-18) — 271 rows
+      for `upsc_prelims_gs`. Other 7 exams still unseeded; `enrich.load_topics()` raises
+      rather than silently proceeding for those. — `scripts/seed_topics.py`
+- [x] **One combined Haiku call per chunk** (cost control, DECIDE-13): generalizes
   `ingest_pyq.py`'s classify-batch pattern to do THREE things in one shot — (a) detect
-  content_type + exam/paper/topic_id (existing auto-labeling scope), (b) write the
+  content_type + topic_id (exam_id is caller-supplied, DECIDE-17), (b) write the
   Contextual Retrieval blurb (`context_prefix`, DECIDE-13) using cached full-document
-  context, (c) for PYQs, the existing question extraction. Use prompt caching (same document
-  → many chunk calls) to keep this affordable.
-- Ollama `nomic-embed-text` embeddings — embed `context_prefix + content`, not raw content
-  alone (that's the point of Contextual Retrieval).
-- Incremental/resumable ingestion (hash-based skip-list, same pattern as Recall's
-  `ingestion_log.json`) so re-running ingest after new uploads only processes new files
-- `published_date` captured at ingest time where derivable (filename year, doc metadata,
-  or explicit CLI flag for a batch); `is_current`/`superseded_by` set when a newer doc for
-  the same topic/indicator is ingested (DECIDE-11)
-- Cost/usage logging on every ingestion batch (Haiku calls add up — surface it, don't guess)
+  context, (c) for PYQs, the existing question extraction. Uncertain classification (no
+  topic match, PYQ missing year/correct_option) raises `ReviewNeededError` rather than
+  guessing (DECIDE-10's principle applied to ingestion). Live-tested against the real
+  Haiku API: correct topic match, sensible context_prefix, and confirmed prompt caching
+  actually hits (`cache_creation` on chunk 1 of a doc, `cache_read` on chunk 2+) — the
+  cost control DECIDE-13 exists for is verified working, not just assumed. —
+  `src/ingestion/enrich.py`, `prompts/enrich_chunk_{system,user}.txt`,
+  `tests/test_enrich.py` (7 tests, all passing)
+- [x] Ollama `nomic-embed-text` embeddings — embed `context_prefix + content`, not raw
+      content alone (that's the point of Contextual Retrieval). Writes to LanceDB's
+      `chunks` table via `merge_insert` (upsert by `chunk_id`, not append) so re-running
+      ingestion over the same document updates rather than duplicates. — `src/ingestion/
+      embed.py`, `tests/test_embed.py` (2 tests, real Ollama calls, throwaway table)
+- [x] Incremental/resumable ingestion (hash-based skip-list, same pattern as Recall's
+      `ingestion_log.json` — path+size+mtime sha256, `data/ingestion_log.json`, saved after
+      every file so a mid-batch crash doesn't lose progress) so re-running ingest after new
+      uploads only processes new/changed files. A chunk Haiku flags as uncertain
+      (`ReviewNeededError`) doesn't abort the batch — appended to
+      `data/flagged_chunks.jsonl` for manual review, run continues. — `scripts/ingest.py`
+- [x] `published_date` captured at ingest time (filename year regex, or an explicit
+      `--published-date` CLI flag for a whole batch — doc-metadata extraction not built,
+      no real source document tested it against yet). `is_current`/`superseded_by`
+      (DECIDE-11) deferred — no re-ingestion-of-a-newer-doc scenario exists yet to need it.
+- [x] Cost/usage logging on every ingestion batch (input/output/cache-write/cache-read
+      token totals printed at the end of a run) — `scripts/ingest.py`
+- [x] End-to-end pipeline verified with a real smoke run (synthetic Article 21/22 `.docx`,
+      throwaway DB/LanceDB copies so real project data stayed untouched): 2 sections
+      persisted, 2 chunks correctly classified to `right_to_freedom` and written to
+      LanceDB, 0 false-positive PYQ extraction, 0 chunks flagged. `tests/test_ingest.py`
+      (8 tests, pure-logic: hashing, skip-list, parser detection, date inference — a
+      word-boundary regex bug caught here: `\b` doesn't fire between `_` and a digit, e.g.
+      "report_2023", fixed with a digit-lookaround instead)
+
+**Phase 1 complete.** Next: Phase 2 (hybrid retrieval + API) — needs real content ingested
+first to be meaningfully testable; only `upsc_prelims_gs` has a topic taxonomy seeded today.
 
 ## Phase 2 — Hybrid retrieval + API
 - `LocalHybridEngine`: dense (LanceDB vector) + BM25 (LanceDB FTS) + RRF(k=60) + FlashRank

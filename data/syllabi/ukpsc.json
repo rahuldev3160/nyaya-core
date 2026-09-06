@@ -1,0 +1,55 @@
+{
+  "_source_note": "State-specific branch hand-curated from real UKPSC syllabus research (RESEARCH-08, 2026-09-06) — coaching-aggregated secondary sources (Drishti IAS, pscnotes, examsuchana), not the primary official PDF text directly. Uttarakhand's official syllabus is unusually detailed for a state PCS (named dynasties, named movements) so this branch has more real granularity than the other 3 states — not padded, just what the source material actually specified. Generic GS content overlaps upsc_prelims_gs heavily and is linked via reused_topics, not re-created. Note: UKPSC states a minimum 1/3rd of Prelims questions reference Uttarakhand directly — the heaviest state-specific weighting found among the 4 states researched.",
+  "reused_topics": [
+    "polity", "history_amac", "modern_history", "geography", "economy",
+    "environment", "science_tech", "current_affairs", "ir_governance", "csat"
+  ],
+  "subjects": [
+    {
+      "id": "uk_specific",
+      "name": "Uttarakhand Specific",
+      "topics": [
+        {
+          "id": "uk_ancient_medieval_history",
+          "name": "Ancient & Medieval History of Uttarakhand",
+          "subtopics": [
+            {"id": "uk_prehistoric_protohistoric", "name": "Prehistoric & Proto-historic Period, Major Archaeological Sites of Uttarakhand"},
+            {"id": "uk_katyuri_dynasty", "name": "Katyuri Dynasty"},
+            {"id": "uk_parmar_dynasty_garhwal", "name": "Parmar Dynasty of Garhwal — Rule, Administration, Society, Economy"},
+            {"id": "uk_chand_dynasty_kumaon", "name": "Chand Dynasty of Kumaon — Rule, Administration, Society, Economy"},
+            {"id": "uk_gorkha_invasion", "name": "Gorkha Invasion & Administration in Uttarakhand"}
+          ]
+        },
+        {
+          "id": "uk_modern_history",
+          "name": "Modern History of Uttarakhand",
+          "subtopics": [
+            {"id": "uk_british_rule_administration", "name": "British Rule in Uttarakhand — Administrative System, Land Revenue, Forest Management, Education & Health"},
+            {"id": "uk_tehri_state", "name": "Tehri State — Rule, Administration, Society, Economy, Religion & Culture"},
+            {"id": "uk_freedom_movement", "name": "National Movement & Freedom Fighters of Uttarakhand"}
+          ]
+        },
+        {
+          "id": "uk_popular_movements",
+          "name": "Popular Movements of Uttarakhand",
+          "subtopics": [
+            {"id": "uk_chipko_movement", "name": "Chipko Movement"},
+            {"id": "uk_coolie_begar_movement", "name": "Coolie Begar Movement"},
+            {"id": "uk_dola_palki_movement", "name": "Dola Palki Movement"},
+            {"id": "uk_anti_liquor_movement", "name": "Anti-Liquor Movement"},
+            {"id": "uk_statehood_movement", "name": "Movement for Separate Uttarakhand State"}
+          ]
+        },
+        {
+          "id": "uk_geography_economy",
+          "name": "Geography & Economy of Uttarakhand",
+          "subtopics": [
+            {"id": "uk_himalayan_ecology", "name": "Himalayan Ecology of Uttarakhand"},
+            {"id": "uk_population_urbanization", "name": "Population Distribution, Urbanization & Migration in Uttarakhand"},
+            {"id": "uk_agriculture_tourism_industry", "name": "Agriculture, Tourism & Industry of Uttarakhand"}
+          ]
+        }
+      ]
+    }
+  ]
+}

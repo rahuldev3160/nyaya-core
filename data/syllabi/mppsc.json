@@ -1,0 +1,38 @@
+{
+  "_source_note": "State-specific branch hand-curated from real MPPSC syllabus research (RESEARCH-08, 2026-09-06) — coaching-aggregated secondary sources (PW, StudyIQ, careerpower), not the primary official PDF text directly. Topic-level granularity. Generic GS content overlaps upsc_prelims_gs heavily and is linked via reused_topics, not re-created.",
+  "reused_topics": [
+    "polity", "history_amac", "modern_history", "geography", "economy",
+    "environment", "science_tech", "current_affairs", "ir_governance", "csat"
+  ],
+  "subjects": [
+    {
+      "id": "mp_specific",
+      "name": "Madhya Pradesh Specific",
+      "topics": [
+        {
+          "id": "mp_history_culture",
+          "name": "History & Culture of Madhya Pradesh",
+          "subtopics": [
+            {"id": "mp_dynasties_major_events", "name": "Major Dynasties & Events of Madhya Pradesh"},
+            {"id": "mp_freedom_movement_contribution", "name": "Madhya Pradesh's Contribution to the Freedom Movement"},
+            {"id": "mp_arts_sculpture_literature", "name": "Arts, Sculpture & Literature of Madhya Pradesh"},
+            {"id": "mp_tribes_festivals", "name": "Tribes & Festivals of Madhya Pradesh"}
+          ]
+        },
+        {
+          "id": "mp_geography_economy",
+          "name": "Geography & Economy of Madhya Pradesh",
+          "subtopics": [
+            {"id": "mp_rivers_forests_minerals", "name": "Rivers, Forests & Minerals of Madhya Pradesh"},
+            {"id": "mp_agriculture_irrigation", "name": "Agriculture & Irrigation of Madhya Pradesh"}
+          ]
+        },
+        {
+          "id": "mp_polity_governance",
+          "name": "Polity & Governance of Madhya Pradesh",
+          "subtopics": []
+        }
+      ]
+    }
+  ]
+}

@@ -6,12 +6,13 @@ from pdf2image import convert_from_path
 from tqdm import tqdm
 
 
-def extract_text(filepath: str, dpi: int = 150) -> str:
+def extract_text(filepath: str, dpi: int = 150) -> list[tuple[int, str]]:
+    """Returns (page_number, page_text) pairs, 1-indexed — see digital_pdf.py (BUG-02)."""
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     images = convert_from_path(filepath, dpi=dpi)
-    text_parts = []
+    pages = []
 
-    for i, img in enumerate(tqdm(images, desc=f"Vision OCR: {filepath.split('/')[-1]}", leave=False)):
+    for i, img in enumerate(tqdm(images, desc=f"Vision OCR: {filepath.split('/')[-1]}", leave=False), start=1):
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
         img_b64 = base64.standard_b64encode(buf.getvalue()).decode()
@@ -33,6 +34,6 @@ def extract_text(filepath: str, dpi: int = 150) -> str:
         )
         text = response.content[0].text.strip()
         if text:
-            text_parts.append(f"[Page {i + 1}]\n{text}")
+            pages.append((i, text))
 
-    return "\n\n".join(text_parts)
+    return pages
