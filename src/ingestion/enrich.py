@@ -160,7 +160,10 @@ def build_pyq(
     if p["question_format"] == "mcq":
         if not p.get("correct_option"):
             raise ReviewNeededError(f"MCQ PYQ from {chunk_id} has no correct_option — needs manual review.")
-        return MCQQuestion(**base, options=p["options"], correct_option=p["correct_option"])
+        return MCQQuestion(
+            **base, options=p["options"], correct_option=p["correct_option"],
+            statements=p.get("statements"),
+        )
     return DescriptiveQuestion(
         **base, marks=p.get("marks") or 0, word_limit=p.get("word_limit") or 0
     )
@@ -172,17 +175,18 @@ def persist_pyq(pyq: PYQQuestion, conn: sqlite3.Connection) -> None:
     conn.execute(
         """INSERT INTO pyq_bank
            (question_id, exam_id, paper_id, topic_id, question_format, year, question_text,
-            options, correct_option, marks, word_limit, source_type, verified_by, reviewed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            options, correct_option, statements, marks, word_limit, source_type, verified_by, reviewed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(question_id) DO UPDATE SET
              question_text=excluded.question_text, options=excluded.options,
-             correct_option=excluded.correct_option, marks=excluded.marks,
-             word_limit=excluded.word_limit""",
+             correct_option=excluded.correct_option, statements=excluded.statements,
+             marks=excluded.marks, word_limit=excluded.word_limit""",
         (
             pyq.question_id, pyq.exam_id, pyq.paper_id, pyq.topic_id, pyq.question_format, pyq.year,
             pyq.question_text,
             json.dumps(pyq.options) if is_mcq else None,
             pyq.correct_option if is_mcq else None,
+            json.dumps(pyq.statements) if is_mcq and pyq.statements else None,
             None if is_mcq else pyq.marks,
             None if is_mcq else pyq.word_limit,
             pyq.source_type, pyq.verified_by,

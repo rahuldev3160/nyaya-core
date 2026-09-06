@@ -29,11 +29,13 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-20](decisions.md#decide-20) — 4 State PCS exams registered (uppcs/hpas/ukpsc/mppsc) per confirmed feasibility; `seed_topics.py` extended for reuse-plus-new-branch; "polity" etc. now shared across 5 exams via exam_topics, not duplicated
 - [DECIDE-21](decisions.md#decide-21) — Finalized exam_id/paper_id naming (institution_exam, paper scoped by composite key); restructured Essay/Ethics/GS/Optionals from separate exams into `upsc_cse` papers; IES/RBI real taxonomies imported
 - [DECIDE-22](decisions.md#decide-22) — Added `institutions` table + `exams.institution_id` FK — real join target for "institution," not just an unqueryable exam_id string prefix; naming grammar itself stays documentation, not data
+- [DECIDE-23](decisions.md#decide-23) — `pyq_explanations` schema designed against Recall's real BUG-04 failure: format-aware (statement-based vs standalone), validated discriminated union, elimination-strategy field, grounding citations; generation script itself deferred (on-demand batch job)
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
 - [BUG-02](bugs.md#bug-02) — Ported parsers discarded page boundaries, breaking `page_number`/`sections.page_start/end` (found and fixed same session, before any consumer existed)
 - [BUG-03](bugs.md#bug-03) — `\b(19|20)\d{2}\b` never matched a year after `_` (e.g. "report_2023") — `\b` doesn't fire between two word chars; fixed with a digit-lookaround, caught by a unit test
+- [BUG-04](bugs.md#bug-04) — Recall's PYQ explanation feature: 100% of wrong-option fields silently empty (statement-based MCQ schema mismatch, unvalidated LLM output) — informs `pyq_explanations` design, not a bug in this repo
 
 ## Research
 - [RESEARCH-01](research.md#research-01) — LanceDB reliability & concurrency
@@ -55,4 +57,4 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 
 ---
 
-**Next available IDs:** DECIDE-23 · BUG-04 · RESEARCH-09 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-24 · BUG-05 · RESEARCH-09 · RISK-04 · ASSUME-02

@@ -1,6 +1,23 @@
 # Project HANDOFF
 
 ## Exact next step
+Phase 1 (ingestion pipeline) is complete, naming/institution schema is finalized, and the
+`pyq_explanations` schema is designed (not yet the generation script — that's a deliberate,
+later, on-demand batch job). Repo is public on GitHub. Real next actions, no particular
+order:
+- Run `scripts/ingest.py` for real against actual content for any of the 7 seeded exams —
+  this is more valuable than more schema work right now, since nothing has been validated
+  against real PDFs yet, only synthetic smoke tests.
+- Import IES/RBI's real taxonomies if not already done this session (check `exam_topics`
+  row counts for `upsc_ies`/`rbi_gradeb` — should be 156/38 if done).
+- When ready to build the PYQ-explanation batch-generation script: it must validate against
+  `PYQExplanation` before writing (partial response = `ReviewNeededError`, never a silent
+  partial write) and ground explanations in real retrieved chunks — both are direct fixes
+  for BUG-04, not optional nice-to-haves.
+- Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after a
+  real ingest run gives it something real to retrieve against.
+
+## Session narrative (2026-09-06, S4)
 **Phase 1 is complete.** `scripts/ingest.py` walks a folder and drives
 chunk_document → enrich_chunk → write_chunk per file, with hash-based skip-list
 resumability, published_date inference, per-chunk uncertainty handling (flagged, not
@@ -20,7 +37,35 @@ documentation (nothing queries a rule at runtime) — but "institution" was a re
 *dimension*, only present as an unqueryable string prefix inside `exam_id`. Added
 `institutions` + `exams.institution_id` FK, seeded for all 8 exams. "Every exam UPSC
 conducts" is now `JOIN institutions`, not `exam_id LIKE 'upsc_%'` — see
-`docs/DATA_DICTIONARY.md`'s new "Rules vs. data" section for the full reasoning.
+`docs/DATA_DICTIONARY.md`'s new "Rules vs. data" section for the full reasoning. **Pushed to
+GitHub: https://github.com/rahuldev3160/nyaya-core (public, per Rahul's explicit choice —
+verified `.env` was never committed to history first).**
+
+**Then: `pyq_explanations` schema designed (DECIDE-23), informed by a real Recall failure
+(BUG-04).** Rahul described a future MCQ practice feature and asked to look into Recall's
+existing equivalent first. Found it 100% broken: all 904 rows in Recall's
+`question_explanations` table have every wrong-option field silently empty, because the
+schema forces four independent option notes onto statement-based questions (the dominant
+real UPSC format — "how many of the following statements are correct") where that shape
+doesn't apply. Also zero grounding (pure model recall, no citations) and a "Resolved" issue
+(ISSUE-013) that only ever covered 3 of the 4 surfaces sharing this defect.
+
+Built (schema only — the generation script itself is later, on-demand, per Rahul's explicit
+choice): `MCQQuestion.statements` (populated at PYQ-extraction time when a question is
+statement-based — live-tested against a real 3-statement question via the actual Haiku API,
+correctly detected and extracted), a discriminated `ExplanationDetail` union
+(`StandaloneExplanation`/`StatementBasedExplanation`) so per-statement vs. per-option
+rationale never gets forced onto the wrong shape, `PYQExplanation` (concept_summary always
+shown, detail only on a wrong attempt, `elimination_strategy` as a first-class field — real
+exam-technique reasoning never attempted anywhere in this system before), and a new
+`pyq_explanations` table. All new model validation tested (`tests/test_explanation_models.py`
+— confirms the union actually rejects a mismatched shape, not just that valid input passes).
+
+**Cross-project fallout logged the same session** (Rahul explicitly asked for this): new
+`ISSUE-029` in Devthorium's `ISSUES.md` for the actual bug, a follow-up note on `ISSUE-013`
+clarifying its fix never covered this surface, `GL-06` in `~/.claude/GLOBAL_LEARNINGS.md`
+(a "Resolved" issue only covers what was checked, not the whole bug class), and Devthorium's
+own close-task checklist updated to check sibling features before closing an issue in future.
 
 7 exams now have a seeded topic taxonomy: `upsc_cse` (271, all under paper `prelims_gs`),
 `upsc_ies` (156, real papers `ge_01`-`ge_04`), `rbi_gradeb` (38), `uppcs`/`hpas`/`ukpsc`/

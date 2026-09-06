@@ -78,6 +78,15 @@ class MCQQuestion(PYQBase):
     question_format: Literal["mcq"] = "mcq"
     options: list[str]
     correct_option: str
+    # Most real UPSC-style MCQs are statement-based ("how many of the following statements
+    # are correct" — options like "Only one"/"Only two"/"All three"), not four independently
+    # meaningful factual options. Capturing statements as structured data at extraction time
+    # (not just embedded in question_text) is what lets explanation generation evaluate each
+    # statement on its own instead of forcing a schema built for standalone options onto a
+    # format it doesn't fit — the exact bug found in Recall's PYQ-explanation feature
+    # (BUG-04: 100% of wrong-option fields came back silently empty for this reason).
+    # None means standalone-option format; a populated list means statement-based.
+    statements: Optional[list[str]] = None
 
 
 class DescriptiveQuestion(PYQBase):
@@ -90,3 +99,73 @@ PYQQuestion = Annotated[
     Union[MCQQuestion, DescriptiveQuestion],
     Field(discriminator="question_format"),
 ]
+
+
+class OptionRationale(BaseModel):
+    """One standalone option's rationale — used when `MCQQuestion.statements` is None."""
+
+    option_label: str  # e.g. "A" — or the option text itself if the source has no letters
+    option_text: str
+    is_correct: bool
+    rationale: str  # why this option is right, or specifically why it's wrong
+
+
+class StatementRationale(BaseModel):
+    """One numbered statement's rationale — used when `MCQQuestion.statements` is set."""
+
+    statement_number: int
+    statement_text: str
+    is_correct: bool
+    rationale: str
+
+
+class StandaloneExplanation(BaseModel):
+    """Explanation shape for an MCQ with independently-meaningful options."""
+
+    option_format: Literal["standalone"] = "standalone"
+    options: list[OptionRationale]
+
+
+class StatementBasedExplanation(BaseModel):
+    """Explanation shape for a statement-based MCQ ("how many of the above statements are
+    correct") — evaluates each statement independently, then explains why the chosen
+    combination option (e.g. "Only two") follows from those evaluations. This is the schema
+    Recall's PYQ-explanation feature lacked (BUG-04): it forced a standalone-option shape
+    onto statement-based questions, and the model silently omitted fields that didn't apply.
+    """
+
+    option_format: Literal["statement_based"] = "statement_based"
+    statements: list[StatementRationale]
+    combination_rationale: str  # why the correct combination-option follows from the above
+
+
+ExplanationDetail = Annotated[
+    Union[StandaloneExplanation, StatementBasedExplanation],
+    Field(discriminator="option_format"),
+]
+
+
+class PYQExplanation(BaseModel):
+    """One row in `pyq_explanations` (1:1 with `pyq_bank` via `question_id`). Generated in a
+    separate, deliberately-triggered batch job — never live during a timed quiz, same
+    principle Recall already established for its own quiz sessions. Validated against this
+    schema before being written: a partial or malformed response is a generation failure to
+    flag (`ReviewNeededError`, matching the pattern already used for chunk enrichment), never
+    a silent partial write — that silent-partial-write failure mode is exactly BUG-04's root
+    cause (100% of Recall's 904 generated rows had empty wrong-option fields, unnoticed).
+    """
+
+    question_id: str  # FK -> pyq_bank.question_id
+    concept_summary: str  # brief — always shown, whether the user got the question right or not
+    detail: ExplanationDetail  # detailed — only shown to the user on a wrong attempt
+    # Real exam-technique reasoning: which options/statements a trained aspirant could
+    # eliminate immediately, and why. Never attempted anywhere in this system before (fork
+    # research confirmed) — a first-class field here, not an afterthought.
+    elimination_strategy: Optional[str] = None
+    # Citations used to generate this explanation — BUG-04's third root cause was zero
+    # grounding/verification (pure model recall, no source to check against).
+    grounding_chunk_ids: list[str] = Field(default_factory=list)
+    model_version: str
+    generated_at: datetime
+    verified_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None

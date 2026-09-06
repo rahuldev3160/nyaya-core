@@ -23,6 +23,14 @@ Rules:
   restated — do not just summarize the chunk.
 - Set `is_pyq` true only for an actual exam question (has a question stem, and for MCQs,
   options). A textbook passage that mentions PYQs in prose is not itself a PYQ.
+- For MCQs: if the question is statement-based ("how many of the following statements are
+  correct" / "which of the statements given above is/are correct" — options like
+  "Only one"/"Only two"/"All three"/"None"), extract each numbered statement's exact text
+  into `statements`, in order. Leave `statements` null for a standalone-option MCQ (options
+  are themselves the things being evaluated, not references back to numbered statements).
+  Getting this distinction right matters — it's what lets each statement be explained on
+  its own later, instead of forcing an explanation shape built for independent options onto
+  a question that doesn't have any.
 - Output ONLY a single JSON object, no markdown code fences, no explanation.
 
 Required JSON shape:
@@ -37,6 +45,7 @@ Required JSON shape:
     "year": <int, or null if not stated>,
     "options": ["..."],           // mcq only, omit/null for descriptive
     "correct_option": "<text of the correct option, or null if not determinable>",  // mcq only
+    "statements": ["..."] | null,  // mcq only — see statement-based rule above; null for standalone-option MCQs and all descriptive questions
     "marks": <int, or null>,      // descriptive only
     "word_limit": <int, or null>  // descriptive only
   }

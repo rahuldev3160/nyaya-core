@@ -404,3 +404,54 @@ usage, not modeled inconsistently).
 anything queries at runtime; it's exactly the kind of institutional knowledge
 `docs/decisions.md`/`MASTER_INDEX.md` already exist to track, and a second copy would just
 be something to keep in sync for no benefit.
+
+### DECIDE-23 — `pyq_explanations` schema, designed against Recall's real failure (BUG-04) {#decide-23}
+**Date:** 2026-09-06 | **Session:** S4
+
+**Decision:** Rahul described a future MCQ practice feature (timed/untimed, topic+exam+year
+filtered, cross-exam mixing, per-question explanations that go deeper on a wrong attempt).
+Before designing it, investigated Recall's existing equivalent feature (fork research) —
+found it 100% broken (BUG-04) in a way that directly shapes this design, not just "make the
+prompt better."
+
+**What was built** (`src/schema/models.py`, `scripts/init_db.py` — schema only; the actual
+batch-generation script is a separate, later, on-demand piece of work per Rahul's explicit
+choice, not built this session):
+- `MCQQuestion.statements: Optional[list[str]]` — populated at PYQ-extraction time
+  (`enrich.py`/`prompts/enrich_chunk_system.txt`, both updated) when a question is
+  statement-based ("how many of the following statements are correct"), the dominant real
+  UPSC Prelims format. `None` for standalone-option MCQs. Live-tested against a real
+  3-statement UPSC-style question via the actual Haiku API — correctly detected and
+  extracted all 3 statements, correctly classified topic_id `parliament` (Rahul's own
+  example topic), not just validated against hand-written fake data.
+- `pyq_bank.statements` column (JSON, nullable) mirrors this in SQLite.
+- New models: `OptionRationale`/`StatementRationale` (leaf-level rationale), a discriminated
+  `ExplanationDetail` union (`StandaloneExplanation` | `StatementBasedExplanation`) so a
+  statement-based question gets per-statement evaluation + a combination-rationale instead
+  of four fake independent option notes — this exact mismatch is what left 100% of Recall's
+  904 rows silently empty. `PYQExplanation` (top-level, matches new `pyq_explanations`
+  table): `concept_summary` (brief, always shown — Rahul's "briefly" case),
+  `detail` (the discriminated union, detailed — shown only on a wrong attempt, matching
+  "in detail for wrong attempts"), `elimination_strategy` (real exam-technique reasoning —
+  never attempted anywhere in this system before, confirmed by fork research), 
+  `grounding_chunk_ids` (citations — BUG-04's zero-grounding problem), `verified_by`/
+  `reviewed_at` (same provenance pattern as everything else in this schema).
+- `pyq_explanations` table (SQLite): 1:1 with `pyq_bank` via `question_id`.
+- Verified the discriminated union actually rejects a malformed shape (missing
+  `combination_rationale` on a statement-based explanation, missing `rationale` on a
+  standalone option) — same standard Phase 0 held `MCQQuestion`/`DescriptiveQuestion` to,
+  not just that valid input passes.
+
+**Explicitly deferred, confirmed with Rahul:** the batch-generation script itself (the thing
+that actually calls an LLM to produce a `PYQExplanation`) is a separate, later, deliberately
+on-demand job — not automatic at ingestion time, for cost control. When built, it must:
+validate the response against `PYQExplanation` before writing (a partial response is
+`ReviewNeededError`, never a silent partial write — BUG-04's second root cause), and ground
+the explanation in real retrieved chunks rather than pure model recall (BUG-04's third).
+
+**Cross-project follow-up, same session:** logged BUG-04 findings into Devthorium's own
+`ISSUES.md` (new ISSUE-029, plus a follow-up note on ISSUE-013 clarifying its fix never
+covered this third surface), and the general process lesson into
+`~/.claude/GLOBAL_LEARNINGS.md` (GL-06 — a "Resolved" issue only covers the surface actually
+checked, not the whole bug class) plus Devthorium's own close-task checklist, so a
+similar-looking defect in a sibling feature doesn't go unnoticed again.

@@ -109,6 +109,9 @@ CREATE TABLE IF NOT EXISTS pyq_bank (
     question_text    TEXT NOT NULL,
     options          TEXT,   -- MCQ-only, JSON-encoded list; NULL for descriptive
     correct_option   TEXT,   -- MCQ-only; NULL for descriptive
+    statements       TEXT,   -- MCQ-only, JSON-encoded list; NULL for standalone-option MCQs
+                             -- and all descriptive questions (DECIDE-23/BUG-04 — see
+                             -- src/schema/models.py's MCQQuestion.statements)
     marks            INTEGER,  -- descriptive-only; NULL for MCQ
     word_limit       INTEGER,  -- descriptive-only; NULL for MCQ
     source_type      TEXT NOT NULL,
@@ -119,6 +122,25 @@ CREATE TABLE IF NOT EXISTS pyq_bank (
 CREATE INDEX IF NOT EXISTS idx_pyq_exam ON pyq_bank(exam_id);
 CREATE INDEX IF NOT EXISTS idx_pyq_topic ON pyq_bank(topic_id);
 CREATE INDEX IF NOT EXISTS idx_pyq_year ON pyq_bank(year);
+
+-- DECIDE-23 (fixes BUG-04, found in Recall's equivalent feature): explanations are
+-- generated in a separate, on-demand batch job — never live during a timed quiz — and
+-- validated against src/schema/models.py's PYQExplanation before being written. `detail`
+-- is a discriminated JSON blob (`option_format`: 'standalone' | 'statement_based') so a
+-- statement-based MCQ ("how many statements are correct") gets per-statement rationale
+-- instead of four fake independent option notes forced onto a format that doesn't fit —
+-- the exact defect that left Recall's wrong-option fields silently empty in every row.
+CREATE TABLE IF NOT EXISTS pyq_explanations (
+    question_id           TEXT PRIMARY KEY REFERENCES pyq_bank(question_id),
+    concept_summary        TEXT NOT NULL,  -- brief, always shown
+    detail                 TEXT NOT NULL,  -- JSON-encoded ExplanationDetail (detailed, wrong-attempt-only)
+    elimination_strategy   TEXT,           -- real exam-technique reasoning; nullable, not every question has one
+    grounding_chunk_ids    TEXT NOT NULL DEFAULT '[]',  -- JSON-encoded list of chunk_id citations
+    model_version          TEXT NOT NULL,
+    generated_at           TEXT NOT NULL,
+    verified_by            TEXT,
+    reviewed_at            TEXT
+);
 
 -- EAV side table (DECIDE-09): lets SQL filter "every chunk tagged difficulty=hard"
 -- directly. The `tags` JSON column on chunks/pyq_bank (see LanceDB side + PYQBase.tags)

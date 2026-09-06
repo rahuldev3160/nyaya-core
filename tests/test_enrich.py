@@ -94,6 +94,43 @@ def test_non_pyq_chunk_returns_no_pyq():
     assert build_pyq("chunk_1", "upsc_prelims_gs", "official_pyq", data) is None
 
 
+def test_statement_based_mcq_captures_statements():
+    data = {
+        "content_type": "mcq_pyq", "topic_id": "parliament", "context_prefix": "x",
+        "is_pyq": True,
+        "pyq": {
+            "question_format": "mcq",
+            "question_text": "Consider the following statements. How many of the above are correct?",
+            "year": 2022,
+            "options": ["Only one", "Only two", "All three", "None"],
+            "correct_option": "Only two",
+            "statements": [
+                "The Speaker of the Lok Sabha is elected by its members.",
+                "The Rajya Sabha cannot be dissolved.",
+                "Money Bills can originate in either House.",
+            ],
+        },
+    }
+    pyq = build_pyq("upsc_cse_paper_1_1", "upsc_cse", "official_pyq", data)
+    assert isinstance(pyq, MCQQuestion)
+    assert pyq.statements is not None
+    assert len(pyq.statements) == 3
+    assert pyq.correct_option == "Only two"
+
+
+def test_standalone_mcq_has_no_statements():
+    data = {
+        "content_type": "mcq_pyq", "topic_id": "constitutional_framework", "context_prefix": "x",
+        "is_pyq": True,
+        "pyq": {"question_format": "mcq", "question_text": "Article 21 protects?",
+                "year": 2023, "options": ["Life", "Property", "Speech", "None"],
+                "correct_option": "Life"},  # no "statements" key at all
+    }
+    pyq = build_pyq("chunk_1", "upsc_prelims_gs", "official_pyq", data)
+    assert isinstance(pyq, MCQQuestion)
+    assert pyq.statements is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

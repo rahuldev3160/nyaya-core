@@ -53,6 +53,33 @@ alphanumerics. Prefer explicit lookarounds (`(?<!\d)...(?!\d)`) over `\b` whenev
 surrounding characters might include `_` or `-`, and never trust a regex's happy path
 without testing it against realistic filenames.
 
+### BUG-04 — Recall's PYQ explanation feature: 100% of wrong-option fields silently empty {#bug-04}
+**Date:** 2026-09-06 | **Session:** S4 | **Fixed:** No (found in Devthorium/Recall, not this
+repo — logged here because it directly shapes the `pyq_explanations` design about to be built)
+
+**Root cause:** Recall's `prompts/pyq_explanation.txt` schema (`option_a_note`-
+`option_d_note`) assumes four independently-meaningful factual options. Most real UPSC
+Prelims MCQs are statement-based ("how many statements are correct," options like "Only
+one"/"Only two"/"All three") — there's nothing coherent to say about why "Only two" is wrong
+as a standalone concept under that schema. The model silently omits those fields for that
+format; nothing in `generate_pyq_explanations.py` detects the omission or refuses to write
+an incomplete row. Confirmed against the live table: all 904 rows have empty wrong-option
+fields — systematic, not occasional. Full detail: Devthorium's `ISSUES.md` ISSUE-029.
+**Fix:** Not applied to Recall's own table (out of scope for this repo). Designing
+nyaya-core's `pyq_explanations` to not repeat this: (1) detect statement-based vs.
+standalone-option format at PYQ-extraction time and branch the schema accordingly instead
+of forcing one shape on both; (2) validate every required field is populated before writing
+a row — treat a partial LLM response as `ReviewNeededError`, never a silent partial write
+(same principle already applied to chunk enrichment); (3) ground the explanation in
+retrieved content and cite it, rather than pure model recall with no verification.
+**Lesson:** A structured-output schema that fits the common case can silently fail on a
+different-but-frequent case without ever raising an error — the model just omits the
+fields that don't apply, and nothing downstream distinguishes "correctly empty" from
+"silently failed." Validate structured LLM output against what the input actually requires,
+not just against "did I get valid JSON back." Cross-project lesson logged as GL-06 in
+`~/.claude/GLOBAL_LEARNINGS.md` (the process-level failure: a same-titled issue was marked
+Resolved after fixing 3 of 4 surfaces sharing the defect).
+
 **Format for future entries:**
 ```
 ### BUG-XX — Short description {#bug-xx}
