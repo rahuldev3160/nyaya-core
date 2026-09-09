@@ -60,10 +60,11 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [RISK-01](risks.md#risk-01) — Scribe's grounding freshness lags until sync is re-run (inherent to DECIDE-03)
 - [RISK-02](risks.md#risk-02) — Old Chroma metadata too sparse to carry over; full re-ingest required at cutover
 - [RISK-03](risks.md#risk-03) — LanceDB's concurrency model won't hold at multi-user "publish it later" scale
+- [RISK-04](risks.md#risk-04) — `upsc_epfo_apfc_eo_ao` topic weights seeded from a single verified year (2025); recompute from real data once a second year is ingested
 
 ## Assumptions
 - [ASSUME-01](decisions.md#assume-01) — Law Optional / Econ Optional source PDFs will be supplied by Rahul later; schema is ready now, ingestion deferred
 
 ---
 
-**Next available IDs:** DECIDE-25 · BUG-11 · RESEARCH-11 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-25 · BUG-11 · RESEARCH-11 · RISK-05 · ASSUME-02

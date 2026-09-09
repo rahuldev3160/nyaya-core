@@ -1,27 +1,37 @@
 # Project HANDOFF
 
 ## Exact next step
-9 exams now registered, 8 with a seeded topic taxonomy (only `rbi_depr` and `upsc_cse`'s
-non-prelims papers have none). `upsc_epfo_apfc_eo_ao` (DECIDE-24, S5) is the newest —
-seeded with REAL weights from an actual 2025 paper (RESEARCH-10), not coaching-site
-guesses. Still nothing has been ingested for real — Phase 1 is fully built but only
-smoke-tested against synthetic content. Real next actions, no particular order:
-- **Ingest the real 2025 APFC/EO/AO paper** (`Desktop/opportunities/govt notifications/
-  epfo_apfc_eoao_2025_question_paper.pdf`, English side) into `upsc_epfo_apfc_eo_ao` via
-  `scripts/ingest.py` — real content already exists for this exam specifically, no sourcing
-  needed. This would also be the first-ever real (non-synthetic) ingestion run for the whole
-  platform, so it validates Phase 1 end-to-end at the same time.
+**Phase 1 (ingestion) is now validated end-to-end against real content for the first time**
+— `upsc_epfo_apfc_eo_ao`'s real 2025 paper is fully ingested: 36 verified questions in
+`pyq_bank` across 14 correctly per-question-tagged topics (up from 0, via 6 real bug fixes —
+BUG-05 through BUG-10, all in `docs/bugs.md`). 9 exams now registered, 8 with a seeded
+topic taxonomy (only `rbi_depr` and `upsc_cse`'s non-prelims papers have none).
+Real next actions, no particular order:
+- **Ingest the other APFC/EO/AO years as Rahul downloads them.** He's actively sourcing
+  more (2023 flagged highest priority — pairs with RESEARCH-09's disputed 2023-vs-2025
+  weightage comparison). Same command each time:
+  `.venv/bin/python scripts/extract_english_pages.py --input <bilingual.pdf> --output
+  data/raw_ingest_staging/upsc_epfo_apfc_eo_ao/<year>.pdf` (only if the source is a
+  bilingual scan like the 2025 one — skip this step entirely for a NotebookLM-cleaned
+  English-only `.docx`, which routes straight through `digital_pdf.py`, no OCR needed) then
+  `.venv/bin/python scripts/ingest.py --folder data/raw_ingest_staging/upsc_epfo_apfc_eo_ao
+  --exam-id upsc_epfo_apfc_eo_ao --source-type official_pyq --published-date <year>-01-01`.
+- **Once 2+ real years are ingested, recompute `exam_topics.weight` from real `pyq_bank`
+  topic-tag frequency** (RISK-04) — current weights are seeded from the single 2025 paper,
+  a real anchor but not a stable multi-year average.
+- **If Rahul finds a real answer key** (coaching sites reportedly publish some, per
+  RESEARCH-09) for any ingested paper, that's the single highest-leverage remaining lever —
+  most of the ~95 currently-flagged questions per paper are unanswerable-by-Haiku, not
+  genuinely bad extractions; a real key turns them into a deterministic lookup instead of an
+  LLM guess.
 - Otherwise, run `scripts/ingest.py` for real against actual content for any of the other 7
   seeded exams.
 - When ready to build the PYQ-explanation batch-generation script: it must validate against
   `PYQExplanation` before writing (partial response = `ReviewNeededError`, never a silent
   partial write) and ground explanations in real retrieved chunks — both are direct fixes
   for BUG-04, not optional nice-to-haves.
-- Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after a
-  real ingest run gives it something real to retrieve against.
-- `upsc_epfo_apfc_eo_ao`'s weights are from a single verified year (2025) — worth
-  recomputing from real ingested `pyq_bank` topic-tag frequency once more years of content
-  exist, rather than treating this as final (see DECIDE-24's caveat).
+- Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after
+  more real content is ingested to retrieve against.
 
 ## Session narrative (2026-09-09, S5)
 Rahul asked to move forward with Nyaya Core and, separately, whether UPSC APFC (an exam
@@ -48,6 +58,43 @@ existing `uppcs.json`), 20 new topics across 4 exam-specific subjects (English, 
 Computer, Labour Codes — 9 real named Acts — and Accountancy/Auditing/Insurance). All
 weights sum to exactly 120, matching the real paper. Logged as RESEARCH-09/RESEARCH-10/
 DECIDE-24 in the audit system.
+
+Then ran the platform's first-ever real (non-synthetic) ingestion — the actual 2025 paper,
+after building `scripts/extract_english_pages.py` to drop the bilingual booklet's Hindi/
+blank/instruction pages (stopword-density heuristic; a naive ASCII-token-count first
+attempt was wrong — Tesseract's eng model produces plenty of ASCII-alphabetic garbage off
+Devanagari script, verified empirically before trusting the fix). Real content immediately
+surfaced 6 real bugs, found and fixed one at a time across 7 ingestion attempts:
+**BUG-05** (`sections.topic_id` FK pointed at a table dropped by an old migration —
+migrate_002's rename didn't propagate to a table created before it ran), **BUG-06**
+(`ingest.py` never called `load_dotenv()`, only worked before via manual shell export),
+**BUG-07** (assumed ≤1 PYQ per chunk, crashed on real dense-MCQ content — Haiku returned a
+list, code expected an object), **BUG-08** (PYQ `year` never backfilled from
+`--published-date` — >half of one run's flags were this alone), **BUG-09** (one invalid
+question discarded its valid siblings in the same chunk — confirmed one real chunk lost 6
+good questions to 1 bad one — and `topic_id` was chunk-level not question-level, wrong for
+content with no section headers to key off), **BUG-10** (a failed chunk-level topic
+classification still discarded valid per-question classifications inside it — same
+reasoning as BUG-09, one layer up, found by explicitly asking "does this same argument
+apply anywhere else").
+
+**Final real yield: 36 verified questions in `pyq_bank`, across 14 distinct correctly
+per-question-tagged topics** (up from 0; General Science 6, Accountancy 6, Computer
+Applications 5, History 4, 2 different Labour Acts, Insurance 2, Auditing 2, Polity 2, plus
+English/Economy singles) — real, not synthetic, proof the per-question topic-tagging fix
+works (previously every question in a chunk would have inherited one shared topic). Total
+Haiku cost across all 7 attempts (including every crashed/debugging run): ~40-45 cents.
+Remaining ~95 flagged questions per full run are now understood to be mostly the real
+answer-key gap (this raw booklet has no key; most domain-knowledge MCQs aren't
+independently verifiable by an LLM), not a pipeline defect — see RISK-04 and the "Exact
+next step" above for what that implies for future ingestion of more years' content.
+
+Rahul also asked several concept-level questions this session (why a verified answer
+matters at all for a "just questions" bank, how Haiku arrives at answers without a key, why
+chunking/"clubbing" happens and what it trades off) — answered in-conversation, not
+re-logged here since they're conceptual, not decisions, but they're what directly motivated
+BUG-09/BUG-10's discovery: tracing "why does clubbing lose quality" led straight to both
+bugs. Committed and pushed: `7738bea` on `origin/main`.
 
 ## Session narrative (2026-09-06, S4)
 **Phase 1 is complete.** `scripts/ingest.py` walks a folder and drives
