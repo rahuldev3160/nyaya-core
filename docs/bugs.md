@@ -241,6 +241,25 @@ the contents can stand on their own. This was found by tracing the exact same re
 Rahul applied to BUG-09 up one more level, not by new evidence — worth actively asking
 "does this same argument apply anywhere else?" after fixing one instance of a pattern.
 
+### BUG-11 — `PLAN.md` cited a resolved decision as still open, causing a wrong answer to Rahul {#bug-11}
+**Date:** 2026-09-09 | **Session:** S6 | **Fixed:** Yes
+
+**Root cause:** `PLAN.md`'s Phase 0 checklist carried a note written in S3 ("DECIDE-16 needs
+Rahul's confirmation whether `upsc_eco_optional` is distinct from `upsc_eco_opt`") that was
+never updated after DECIDE-16 actually resolved in S4, and was further superseded by
+DECIDE-21's restructuring the same session. Answering a direct question from Rahul by
+reading `PLAN.md` and quoting that line — without cross-checking `decisions.md`'s own
+Resolved/Closed status field for DECIDE-16 — produced a wrong claim that the question was
+still open, when it had been closed for 3 sessions.
+**Fix:** `PLAN.md`'s note corrected to point at the real outcome (DECIDE-16 → DECIDE-21 →
+DECIDE-25). `PROJECT.md`'s top-line status (also stale — predated S5's real ingestion and
+the 9th exam registration) refreshed in the same pass.
+**Lesson:** A decision log entry (`decisions.md`) is the authoritative source for whether a
+decision is resolved. A checklist or plan note that *cites* a decision by ID can go stale
+the moment the decision closes — never trust the citing doc's framing over the log entry's
+own status field. Applies beyond this repo to any project with a similar plan-doc /
+decision-log split.
+
 **Format for future entries:**
 ```
 ### BUG-XX — Short description {#bug-xx}

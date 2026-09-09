@@ -500,3 +500,27 @@ not to model uncertainty explicitly now.
 
 **Rejected:** two separate `exam_id`s (`upsc_apfc`/`upsc_eo_ao`) — would duplicate every
 topic weight twice for content that is, per RESEARCH-10, literally one paper.
+
+### DECIDE-25 — Split `eco_optional`/`law_optional` into Paper I/II {#decide-25}
+**Date:** 2026-09-09 | **Session:** S6
+
+**Decision:** Rahul flagged that every UPSC Optional subject is 2 compulsory papers/year
+with disjoint syllabi (Economics Paper I = theory — micro/macro, growth, international
+econ, money-banking; Paper II = the Indian economy — planning, agriculture, industry,
+poverty). DECIDE-21's restructuring correctly split `mains_gs` into `mains_gs1`-`mains_gs4`
+for the same reason but left both Optionals as one paper row each — a real gap, not a style
+choice, since Paper I and Paper II content/topics genuinely don't overlap.
+
+**What changed** (`scripts/migrate_004_split_optional_papers.py`, run against the live
+`data/core.db`; `scripts/init_db.py`'s `PAPERS` updated for fresh clones): `eco_optional` →
+`eco_optional_1`/`eco_optional_2`; `law_optional` → `law_optional_1`/`law_optional_2`.
+Naming matches the `_1`/`_2` convention Rahul chose over the existing no-separator
+`mains_gs1..gs4` precedent, for readability. Zero dependent rows existed in
+`exam_topics`/`pyq_bank`/`sections` for either old paper_id (no Optional topics seeded, no
+Optional content ingested yet) — clean split, not a data migration; the script hard-aborts
+if it ever finds dependent rows instead of silently assuming zero, since that assumption is
+only true today.
+
+**Doc-hygiene fallout also fixed this session:** `PLAN.md`'s Phase 0 checklist still carried
+a stale "DECIDE-16 needs Rahul's confirmation" note from S3, never updated after DECIDE-16
+resolved in S4 — corrected to point at the actual outcome (DECIDE-16 → DECIDE-21 → this).

@@ -1,11 +1,25 @@
 # Project HANDOFF
 
 ## Exact next step
-**Phase 1 (ingestion) is now validated end-to-end against real content for the first time**
-— `upsc_epfo_apfc_eo_ao`'s real 2025 paper is fully ingested: 36 verified questions in
-`pyq_bank` across 14 correctly per-question-tagged topics (up from 0, via 6 real bug fixes —
-BUG-05 through BUG-10, all in `docs/bugs.md`). 9 exams now registered, 8 with a seeded
-topic taxonomy (only `rbi_depr` and `upsc_cse`'s non-prelims papers have none).
+**Waiting on Rahul: he's downloading more real EPFO/APFC/EO/AO papers + answer keys and
+will NotebookLM them into clean docx (2023 flagged highest priority).** The moment one is
+ready, ingest it exactly like the 2025 paper — see the command block below. That is
+literally the next concrete action; everything else here is secondary/parallel work.
+
+**Also open, no blockers left on the DB side:** `upsc_cse`'s Optional papers are now
+correctly split into Paper I/II (`eco_optional_1`/`eco_optional_2`, `law_optional_1`/
+`law_optional_2` — DECIDE-25, `scripts/migrate_004_split_optional_papers.py`, already run).
+**None of the 4 have a seeded topic taxonomy yet** — that's the real remaining blocker
+before any Eco/Law Optional content can be ingested (`enrich.load_topics()` will hard-raise
+otherwise). If Rahul sources a real Economics/Law Optional syllabus for either paper, seed
+it via `scripts/seed_topics.py`'s existing pattern before attempting ingestion.
+
+Phase 1 (ingestion) is validated end-to-end against real content — `upsc_epfo_apfc_eo_ao`'s
+real 2025 paper is fully ingested: 36 verified questions in `pyq_bank` across 14 correctly
+per-question-tagged topics (via 6 real bug fixes — BUG-05 through BUG-10, all in
+`docs/bugs.md`). 9 exams registered, 8 with a seeded topic taxonomy (only `rbi_depr` and
+`upsc_cse`'s 4 Optional papers have none — mains_gs1-4/prelims_gs/essay/upsc_ies/rbi_gradeb/
+State PCS all do).
 Real next actions, no particular order:
 - **Ingest the other APFC/EO/AO years as Rahul downloads them.** He's actively sourcing
   more (2023 flagged highest priority — pairs with RESEARCH-09's disputed 2023-vs-2025
@@ -32,6 +46,29 @@ Real next actions, no particular order:
   for BUG-04, not optional nice-to-haves.
 - Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after
   more real content is ingested to retrieve against.
+
+## Session narrative (2026-09-09, S6)
+Rahul asked for a status/estimate ("what's complete, what's left, how long till the model's
+done") — answered with the Phase 0-6 breakdown from `PLAN.md` (Phase 0+1 done and validated;
+Phase 2 hybrid retrieval+API next, ~2-3 sessions; Phase 3 Recall cutover, Phase 4 Scribe
+sync). Discussed sequencing new ingestion (IES/more EPFO years/CSE Prelims are ready now;
+Mains GS/Eco Optional are blocked on missing topic taxonomies) and flagged that all real
+ingestion so far has been PYQ-only — the chunker's section-splitting/auto-merging path
+(a Phase 2 dependency) has never been tested against real prose content.
+
+Rahul said he has the EPFO papers now and is downloading answer keys, will NotebookLM them
+into docx. Separately confirmed Eco Optional/Eco Opt naming was already resolved in a past
+session (DECIDE-16→DECIDE-21) — I had wrongly told him it was still open by quoting a stale
+`PLAN.md` note without checking `decisions.md`'s own status field (**BUG-11**, fixed: both
+docs corrected).
+
+Rahul then caught a real second gap: every UPSC Optional subject is 2 compulsory
+papers/year with disjoint syllabi, but `eco_optional`/`law_optional` had each been left as
+ONE paper row when `mains_gs` was correctly split into gs1-gs4 for the identical reason
+back in DECIDE-21. Fixed as **DECIDE-25**: split into `eco_optional_1`/`_2`,
+`law_optional_1`/`_2` (his chosen `_1`/`_2` naming) via
+`scripts/migrate_004_split_optional_papers.py` — zero dependent data existed, clean split.
+`scripts/init_db.py` updated for fresh clones. No topics seeded for any of the 4 yet.
 
 ## Session narrative (2026-09-09, S5)
 Rahul asked to move forward with Nyaya Core and, separately, whether UPSC APFC (an exam

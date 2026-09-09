@@ -15,9 +15,12 @@ is the living version — update it as phases complete or scope shifts.
       — `scripts/init_db.py`
 - [x] Seed registry rows for exams that already exist elsewhere: `upsc_prelims_gs`,
       `upsc_mains_gs`, `essay`, `ethics`, `ies`, `rbi_grade_b`, `upsc_eco_opt` — plus a
-      placeholder row for `upsc_law_optional` (ASSUME-01). **DECIDE-16: did not seed a
-      second `upsc_eco_optional` placeholder — needs Rahul's confirmation whether it's
-      distinct from `upsc_eco_opt` before Phase 1 touches Economics Optional content.**
+      placeholder row for `upsc_law_optional` (ASSUME-01). **DECIDE-16 (resolved S4):**
+      confirmed `upsc_eco_opt`/`upsc_eco_optional` are the same exam. Superseded by
+      DECIDE-21 (both merged into `upsc_cse` as a paper, not a separate exam) and DECIDE-25
+      (that paper split into `eco_optional_1`/`eco_optional_2` — Paper I/II have disjoint
+      syllabi). Current state: `upsc_cse` papers `eco_optional_1`/`_2`,
+      `law_optional_1`/`_2` — no topics seeded yet for any of the four.
 - [x] Port `scripts/parsers/` from Devthorium verbatim (7 files, proven, format-agnostic)
       — `src/ingestion/parsers/`, import surface verified against all 7 functions
 

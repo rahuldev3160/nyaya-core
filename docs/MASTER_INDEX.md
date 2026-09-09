@@ -31,6 +31,7 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-22](decisions.md#decide-22) — Added `institutions` table + `exams.institution_id` FK — real join target for "institution," not just an unqueryable exam_id string prefix; naming grammar itself stays documentation, not data
 - [DECIDE-23](decisions.md#decide-23) — `pyq_explanations` schema designed against Recall's real BUG-04 failure: format-aware (statement-based vs standalone), validated discriminated union, elimination-strategy field, grounding citations; generation script itself deferred (on-demand batch job)
 - [DECIDE-24](decisions.md#decide-24) — Registered `upsc_epfo_apfc_eo_ao` (one exam, not two); real per-subject weights from RESEARCH-10 seeded via a backward-compatible `seed_topics.py` extension (`reused_topics` can now carry a weight, not just an id)
+- [DECIDE-25](decisions.md#decide-25) — Split `eco_optional`/`law_optional` into Paper I/II (`_1`/`_2`) — each UPSC Optional is 2 papers/year with disjoint syllabi, same gap DECIDE-21 already fixed for mains_gs; zero dependent data, clean split via `migrate_004_split_optional_papers.py`
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
@@ -43,6 +44,7 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [BUG-08](bugs.md#bug-08) — PYQ `year` never backfilled from `--published-date`; 17 of 33 real flagged chunks were this alone — fixed, `build_pyqs` now falls back to the caller-supplied date
 - [BUG-09](bugs.md#bug-09) — one bad question discarded valid siblings in the same chunk (confirmed: one real chunk lost 6 good questions to 1 bad one); topic_id was chunk-level not question-level — both fixed, per-item flagging + per-question topic with FK validation, 32/32 tests passing
 - [BUG-10](bugs.md#bug-10) — chunk-level topic failure still discarded question-level topic successes (6 real content chunks lost after BUG-09's fix) — `enrich_chunk` now extracts chunk metadata and per-question PYQs independently, 33/33 tests passing
+- [BUG-11](bugs.md#bug-11) — `PLAN.md` cited DECIDE-16 as still open 3 sessions after it resolved (superseded by DECIDE-21/25 too) — caused a wrong answer to Rahul; fixed, lesson: trust decisions.md's own status, not a citing doc's framing
 
 ## Research
 - [RESEARCH-01](research.md#research-01) — LanceDB reliability & concurrency
@@ -67,4 +69,4 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 
 ---
 
-**Next available IDs:** DECIDE-25 · BUG-11 · RESEARCH-11 · RISK-05 · ASSUME-02
+**Next available IDs:** DECIDE-26 · BUG-12 · RESEARCH-11 · RISK-05 · ASSUME-02

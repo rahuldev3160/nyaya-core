@@ -202,6 +202,8 @@ EXAMS = [
 # paper_id is scoped by exam_id (DECIDE-21) — short and un-prefixed, since `papers`' PK is
 # the (exam_id, paper_id) pair, not paper_id alone. upsc_law_optional has no content yet
 # (was ASSUME-01's placeholder) — kept as a paper row, not a separate exam.
+# Every UPSC Optional subject is 2 compulsory papers/year with disjoint syllabi, not one
+# blob — split accordingly (DECIDE-25), same reasoning mains_gs already got as gs1-gs4.
 PAPERS = [
     ("upsc_cse", "prelims_gs", "CSE Prelims — General Studies Paper I"),
     ("upsc_cse", "mains_gs1", "CSE Mains — General Studies I"),
@@ -209,8 +211,10 @@ PAPERS = [
     ("upsc_cse", "mains_gs3", "CSE Mains — General Studies III"),
     ("upsc_cse", "mains_gs4", "CSE Mains — General Studies IV (Ethics)"),
     ("upsc_cse", "essay", "CSE Mains — Essay"),
-    ("upsc_cse", "eco_optional", "CSE Mains — Economics Optional"),
-    ("upsc_cse", "law_optional", "CSE Mains — Law Optional (placeholder, no content yet)"),
+    ("upsc_cse", "eco_optional_1", "CSE Mains — Economics Optional Paper I"),
+    ("upsc_cse", "eco_optional_2", "CSE Mains — Economics Optional Paper II"),
+    ("upsc_cse", "law_optional_1", "CSE Mains — Law Optional Paper I (placeholder, no content yet)"),
+    ("upsc_cse", "law_optional_2", "CSE Mains — Law Optional Paper II (placeholder, no content yet)"),
 ]
 
 CONTENT_TYPES = [
