@@ -177,6 +177,12 @@ INSTITUTIONS = [
 EXAMS = [
     ("upsc_cse", "upsc", "UPSC Civil Services Examination"),
     ("upsc_ies", "upsc", "UPSC Indian Economic Service"),
+    # APFC and EO/AO are UPSC-conducted as ONE combined recruitment test since the 2025
+    # cycle — same syllabus, same paper, same sitting (RESEARCH-09/RESEARCH-10, 2026-09-09).
+    # Modeled as a single exam, not two, so a future cycle bundling/unbundling posts never
+    # needs the kind of exam/paper restructuring DECIDE-21 had to do for CSE. Single paper
+    # (paper_id '_all' in exam_topics) — no `papers` row, same pattern as rbi_gradeb/State PCS.
+    ("upsc_epfo_apfc_eo_ao", "upsc", "UPSC EPFO Combined Recruitment Test (APFC/EO/AO)"),
     ("rbi_gradeb", "rbi", "RBI Grade B"),
     # Placeholder (DECIDE-21) — Rahul referenced this as a real, distinct RBI exam from
     # Grade B; no content sourced yet.

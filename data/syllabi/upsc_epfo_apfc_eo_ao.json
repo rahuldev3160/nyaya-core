@@ -1,0 +1,58 @@
+{
+  "_source_note": "Syllabus heads from the official notification (UPSC Special Advertisement 52/2026, Appendix-I). Weights are REAL, not estimated — read directly off Rahul's own copy of the actual 2025 combined APFC/EO/AO paper (RESEARCH-10), not coaching-site reconstructions (which disagreed with each other and with this real paper, see RESEARCH-09). Caveat: this is one verified year, not a multi-year average — real subject weightage is known to swing year to year (RESEARCH-09), so these weights are a real anchor, not a guaranteed repeat. Reused topics overlap heavily with upsc_prelims_gs's canonical taxonomy; the 4 genuinely new subjects (English, Science/Computer, Labour Codes, Accountancy/Auditing/Insurance) are specific to this exam's Group-B-officer-level syllabus and do not transfer to EPFO's other, staff-level exams (SSA/Stenographer — see RESEARCH-09).",
+  "reused_topics": [
+    {"id": "current_affairs", "weight": 10},
+    {"id": "economy", "weight": 9},
+    {"id": "polity", "weight": 12},
+    {"id": "history_amac", "weight": 5},
+    {"id": "modern_history", "weight": 4},
+    {"id": "csat", "weight": 15},
+    {"id": "reading_comprehension", "weight": 5}
+  ],
+  "subjects": [
+    {
+      "id": "general_english",
+      "name": "General English (non-comprehension)",
+      "avg_questions_per_year": 15,
+      "topics": [
+        {"id": "vocabulary_usage", "name": "Vocabulary & Closest-Meaning Usage"},
+        {"id": "grammar_correctness", "name": "Grammar, Prepositions & Phrasal-Verb Correctness"}
+      ]
+    },
+    {
+      "id": "general_science_computer",
+      "name": "General Science & Basic Computer Applications",
+      "avg_questions_per_year": 15,
+      "topics": [
+        {"id": "general_science", "name": "General Science (Physics/Chemistry/Biology basics)"},
+        {"id": "computer_applications", "name": "Computer Applications & Basic IT Concepts"}
+      ]
+    },
+    {
+      "id": "labour_codes_social_security",
+      "name": "Industrial Relations, Labour Codes & Social Security",
+      "avg_questions_per_year": 15,
+      "topics": [
+        {"id": "epf_misc_provisions_act_1952", "name": "EPF & Miscellaneous Provisions Act, 1952 (incl. EPF/EPS/EDLI/Family Pension Schemes)"},
+        {"id": "esi_act_1948", "name": "Employees' State Insurance Act, 1948"},
+        {"id": "payment_of_wages_act_1936", "name": "Payment of Wages Act, 1936"},
+        {"id": "employees_compensation_act_1923", "name": "Employees' Compensation Act, 1923"},
+        {"id": "industrial_disputes_act_1947", "name": "Industrial Disputes Act, 1947"},
+        {"id": "trade_unions_act_1926", "name": "Trade Unions Act, 1926"},
+        {"id": "maternity_benefit_act_1961", "name": "Maternity Benefit Act, 1961"},
+        {"id": "payment_of_gratuity_act_1972", "name": "Payment of Gratuity Act, 1972"},
+        {"id": "new_labour_codes", "name": "The 4 New Labour Codes (Wages/IR/OSH/Social Security, 2019-2020)"}
+      ]
+    },
+    {
+      "id": "accountancy_auditing_insurance",
+      "name": "Principles of Accountancy, Auditing & Insurance",
+      "avg_questions_per_year": 15,
+      "topics": [
+        {"id": "accountancy_fundamentals", "name": "Accountancy Fundamentals (accrual/matching, journal entries, trial balance, inventory valuation)"},
+        {"id": "auditing_principles", "name": "Auditing Principles (vouching, verification, documentation)"},
+        {"id": "insurance_principles", "name": "Insurance Principles (indemnity, subrogation, utmost good faith)"}
+      ]
+    }
+  ]
+}

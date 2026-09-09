@@ -67,8 +67,14 @@ def seed_reused_topics(data: dict, exam_id: str, paper_id: str, conn: sqlite3.Co
     reused = data.get("reused_topics", [])
     if not reused:
         return 0
+    # Each entry is either a bare topic_id string (weight defaults to 1.0, the original
+    # shape) or {"id": ..., "weight": ...} when this exam has a real, sourced per-topic
+    # question count to carry (e.g. RESEARCH-10's verified 2025 APFC counts) — flattening
+    # every reused topic to 1.0 would discard exactly the weight signal layered-coverage
+    # prioritization needs.
+    entries = [(e, 1.0) if isinstance(e, str) else (e["id"], float(e.get("weight", 1.0))) for e in reused]
     missing = [
-        tid for tid in reused
+        tid for tid, _ in entries
         if not conn.execute("SELECT 1 FROM topics WHERE topic_id = ?", (tid,)).fetchone()
     ]
     if missing:
@@ -77,10 +83,10 @@ def seed_reused_topics(data: dict, exam_id: str, paper_id: str, conn: sqlite3.Co
             f"seed the exam that owns them first, or fix a typo."
         )
     conn.executemany(
-        "INSERT OR IGNORE INTO exam_topics (exam_id, paper_id, topic_id, weight) VALUES (?, ?, ?, 1.0)",
-        [(exam_id, paper_id, tid) for tid in reused],
+        "INSERT OR IGNORE INTO exam_topics (exam_id, paper_id, topic_id, weight) VALUES (?, ?, ?, ?)",
+        [(exam_id, paper_id, tid, weight) for tid, weight in entries],
     )
-    return len(reused)
+    return len(entries)
 
 
 def seed_from_json(

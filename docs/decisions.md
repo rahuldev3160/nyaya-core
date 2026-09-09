@@ -455,3 +455,48 @@ covered this third surface), and the general process lesson into
 `~/.claude/GLOBAL_LEARNINGS.md` (GL-06 — a "Resolved" issue only covers the surface actually
 checked, not the whole bug class) plus Devthorium's own close-task checklist, so a
 similar-looking defect in a sibling feature doesn't go unnoticed again.
+
+### DECIDE-24 — Registered `upsc_epfo_apfc_eo_ao`; real per-subject weights from RESEARCH-10, not guessed {#decide-24}
+**Date:** 2026-09-09 | **Session:** S5
+
+**Decision:** Registered UPSC's EPFO recruitment test as one exam,
+`upsc_epfo_apfc_eo_ao` (`exams`, institution `upsc`), not two. Rahul asked for
+`upsc_epfo_apfc/eo/ao`; slashes aren't usable in an `exam_id` (it's a SQLite PK, a
+`data/syllabi/{exam_id}.json` filename, and a FastAPI query-string value in Phase 2) so this
+substitutes underscores while keeping the same intent — every post APFC/EO/AO named
+together, reflecting RESEARCH-09/RESEARCH-10's finding that they've been one combined paper
+since 2025. No `papers` row — single paper, same pattern as `rbi_gradeb` and the State PCS
+exams (`paper_id = '_all'` in `exam_topics`).
+
+**Topic seeding — reuse-first, same DECIDE-19 payoff as State PCS:** 7 links to existing
+canonical topics with *real* weights instead of the reuse path's previous flat `1.0`
+(`current_affairs` 10, `economy` 9, `polity` 12, `history_amac` 5, `modern_history` 4, `csat`
+15 — reused for the Elementary Maths/Stats/GMA syllabus head, `reading_comprehension` 5).
+4 genuinely new subjects seeded (20 new topic rows): `general_english` (non-RC portion),
+`general_science_computer`, `labour_codes_social_security` (9 real Act-level topics —
+EPF Act 1952, ESI Act 1948, Payment of Wages Act 1936, Employees' Compensation Act 1923,
+Industrial Disputes Act 1947, Trade Unions Act 1926, Maternity Benefit Act 1961, Payment of
+Gratuity Act 1972, the 4 new Labour Codes), `accountancy_auditing_insurance`. All weights
+sum to exactly 120 — the real question count from RESEARCH-10's paper, not a coincidence,
+a deliberate check that the seeding matched the source.
+
+**`seed_topics.py` extended (backward compatible):** `reused_topics` entries can now be
+either a bare topic_id string (unchanged behavior, weight defaults to `1.0`) or
+`{"id": ..., "weight": ...}` when a real per-topic count exists — needed because RESEARCH-10
+gave real weights for reused topics too (e.g. `polity` genuinely gets 12 questions in this
+exam, not the placeholder 1), and flattening that to 1.0 would have thrown away the exact
+signal `exam_topics.weight` exists to carry. Verified against the existing plain-string
+`uppcs.json` re-run (idempotent, identical counts) before treating it as safe.
+
+**Weight-modeling caveat, explicitly not resolved by this decision:** these are real
+numbers from ONE verified year (2025), not a multi-year average — RESEARCH-09 found genuine
+year-to-year volatility in this exam's subject weightage. Documented as a caveat in
+`data/syllabi/upsc_epfo_apfc_eo_ao.json`'s `_source_note` rather than invented a
+confidence/provenance column — same "grammar/caveat stays documentation, not a queried
+field" reasoning as DECIDE-22, since nothing runs a query asking "how many years is this
+weight based on." The real fix, per the architecture discussion, is to recompute weight
+from actual ingested `pyq_bank` topic-tag frequency once more real years of content exist —
+not to model uncertainty explicitly now.
+
+**Rejected:** two separate `exam_id`s (`upsc_apfc`/`upsc_eo_ao`) — would duplicate every
+topic weight twice for content that is, per RESEARCH-10, literally one paper.

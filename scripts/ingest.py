@@ -4,10 +4,11 @@ per-chunk classifications (DECIDE-17): the folder you point this at IS the exam 
 
 Incremental/resumable via a hash-based skip-list (`data/ingestion_log.json`), same pattern
 as Devthorium's `ingestion_log.json` — re-running after new uploads only processes new or
-changed files. A chunk Haiku flags as uncertain (ReviewNeededError — no topic match, or a
-PYQ missing year/correct_option) does not abort the batch; it's appended to
-`data/flagged_chunks.jsonl` for manual review and the run continues (DECIDE-10's principle:
-surface uncertainty, don't crash on it and don't silently drop it either).
+changed files. Uncertainty is flagged, never silently dropped or guessed past (DECIDE-10) —
+appended to `data/flagged_chunks.jsonl`, batch continues. Two independent failure units, per
+BUG-09: a whole CHUNK can be flagged (its own overall topic didn't match — no embedding gets
+written for it), and/or individual QUESTIONS within an otherwise-fine chunk can be flagged
+(missing year/correct_option/own topic) without discarding their valid siblings.
 
 Usage:
     .venv/bin/python scripts/ingest.py --folder /path/to/pdfs --exam-id upsc_prelims_gs \\
@@ -25,13 +26,14 @@ from datetime import date
 from pathlib import Path
 
 import anthropic
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from src.ingestion.chunker import chunk_document
 from src.ingestion.embed import write_chunk
 from src.ingestion.enrich import (
-    ReviewNeededError,
     build_system_prompt,
     enrich_chunk,
     load_content_types,
@@ -135,27 +137,37 @@ def ingest_file(
 
     summary = {
         "file": str(path), "chunks_written": 0, "pyqs_written": 0, "chunks_flagged": 0,
-        "input_tokens": 0, "output_tokens": 0, "cache_creation_tokens": 0, "cache_read_tokens": 0,
+        "pyqs_flagged": 0, "input_tokens": 0, "output_tokens": 0, "cache_creation_tokens": 0,
+        "cache_read_tokens": 0,
     }
 
-    for chunk in chunks:
-        try:
-            metadata, pyq, usage = enrich_chunk(
-                chunk, exam_id, source_type, system_prompt, client,
-                published_date=published_date, paper_id=paper_id,
-            )
-        except ReviewNeededError as e:
-            summary["chunks_flagged"] += 1
-            FLAGGED_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(FLAGGED_PATH, "a") as f:
-                f.write(json.dumps({"file": str(path), "chunk_index": chunk.chunk_index, "reason": str(e)}) + "\n")
-            continue
+    def _log_flagged(reason: str) -> None:
+        FLAGGED_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(FLAGGED_PATH, "a") as f:
+            f.write(json.dumps({"file": str(path), "chunk_index": chunk.chunk_index, "reason": reason}) + "\n")
 
-        write_chunk(metadata)
-        summary["chunks_written"] += 1
-        if pyq is not None:
+    for chunk in chunks:
+        metadata, pyqs, pyq_failures, metadata_failure, usage = enrich_chunk(
+            chunk, exam_id, source_type, system_prompt, client, topics,
+            published_date=published_date, paper_id=paper_id,
+        )
+
+        # The chunk's own overall classification (its embedding/retrieval placement) and its
+        # extracted questions (each independently topic-tagged, BUG-09) are independent
+        # outcomes of the same call — one failing must not take the other down with it.
+        if metadata is not None:
+            write_chunk(metadata)
+            summary["chunks_written"] += 1
+        else:
+            summary["chunks_flagged"] += 1
+            _log_flagged(metadata_failure)
+
+        for pyq in pyqs:
             persist_pyq(pyq, conn)
             summary["pyqs_written"] += 1
+        for reason in pyq_failures:
+            summary["pyqs_flagged"] += 1
+            _log_flagged(reason)
 
         summary["input_tokens"] += usage["input_tokens"]
         summary["output_tokens"] += usage["output_tokens"]
@@ -186,7 +198,7 @@ def main() -> None:
 
     files = [p for p in args.folder.rglob("*") if p.is_file() and detect_parser(p) != "unknown"]
     totals = {"files_processed": 0, "files_skipped": 0, "chunks_written": 0, "pyqs_written": 0,
-              "chunks_flagged": 0, "input_tokens": 0, "output_tokens": 0,
+              "chunks_flagged": 0, "pyqs_flagged": 0, "input_tokens": 0, "output_tokens": 0,
               "cache_creation_tokens": 0, "cache_read_tokens": 0}
 
     for path in files:
@@ -199,12 +211,12 @@ def main() -> None:
         summary = ingest_file(path, args.exam_id, args.source_type, conn, client, published_date,
                                paper_id=args.paper_id)
         print(f"{path.name}: {summary['chunks_written']} chunks, {summary['pyqs_written']} PYQs, "
-              f"{summary['chunks_flagged']} flagged")
+              f"{summary['chunks_flagged']} chunks flagged, {summary['pyqs_flagged']} questions flagged")
 
         log[str(path)] = h
         save_log(log)  # after every file, not just at the end — a crash mid-batch shouldn't lose progress
         totals["files_processed"] += 1
-        for key in ("chunks_written", "pyqs_written", "chunks_flagged", "input_tokens",
+        for key in ("chunks_written", "pyqs_written", "chunks_flagged", "pyqs_flagged", "input_tokens",
                     "output_tokens", "cache_creation_tokens", "cache_read_tokens"):
             totals[key] += summary[key]
 
@@ -212,7 +224,8 @@ def main() -> None:
     print(
         f"\nDone: {totals['files_processed']} files processed, {totals['files_skipped']} skipped "
         f"(unchanged). {totals['chunks_written']} chunks written, {totals['pyqs_written']} PYQs, "
-        f"{totals['chunks_flagged']} flagged for review (see {FLAGGED_PATH.name}).\n"
+        f"{totals['chunks_flagged']} whole chunks flagged, {totals['pyqs_flagged']} individual "
+        f"questions flagged (see {FLAGGED_PATH.name}).\n"
         f"Haiku usage: {totals['input_tokens']} input, {totals['output_tokens']} output, "
         f"{totals['cache_creation_tokens']} cache-write, {totals['cache_read_tokens']} cache-read tokens."
     )

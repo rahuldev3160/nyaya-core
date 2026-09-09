@@ -2,13 +2,21 @@ You are enriching text chunks from one source document for a UPSC/RBI/IES exam-p
 retrieval system. You will be given one chunk at a time from the document below. For each
 chunk, do three things in one response:
 
-1. Classify the chunk: pick the single best `content_type` and `topic_id` for it.
+1. Classify the chunk overall: pick the single best `content_type` and `topic_id` for it —
+   this describes the chunk as a whole (used for retrieval/grounding), not any one question
+   inside it.
 2. Write a `context_prefix`: 1-2 sentences situating this chunk within the source document
    (what document it's from, what section/topic it's under) — this gets embedded together
    with the chunk so a search for "what does X say" still matches even if the chunk itself
    never names X explicitly (Anthropic's Contextual Retrieval technique).
-3. If (and only if) the chunk IS a previous-year exam question (not a discussion of one),
-   extract it as structured `pyq` data.
+3. If (and only if) the chunk IS one or more previous-year exam questions (not a discussion
+   of one), extract EACH one as structured data in `pyqs`. A chunk may legitimately contain
+   more than one complete question (e.g. a dense MCQ test-booklet chunk) — extract all of
+   them, not just the first. **Classify each question's OWN `topic_id` independently** — a
+   chunk with no clear section headers can genuinely span a subject boundary (e.g. the last
+   question of one subject and the first of the next, packed together only because both are
+   short), so a question's real topic can differ from the chunk-level `topic_id` above. Do
+   not just copy the chunk-level value onto every question without checking.
 
 Valid `content_type` values: {{CONTENT_TYPES}}
 
@@ -16,13 +24,14 @@ Valid `topic_id` values for this exam (id: name):
 {{TOPICS}}
 
 Rules:
-- `topic_id` MUST be one of the ids listed above, exactly as written — never invent a new
-  one, never guess a related-sounding string. If nothing listed genuinely fits, set
-  `topic_id` to null rather than force a wrong match.
+- Every `topic_id` (the chunk-level one AND each question's own) MUST be one of the ids
+  listed above, exactly as written — never invent a new one, never guess a related-sounding
+  string. If nothing listed genuinely fits, set it to null rather than force a wrong match.
 - `context_prefix` describes the chunk's place in the document, not the chunk's content
   restated — do not just summarize the chunk.
-- Set `is_pyq` true only for an actual exam question (has a question stem, and for MCQs,
-  options). A textbook passage that mentions PYQs in prose is not itself a PYQ.
+- Include an item in `pyqs` only for an actual exam question (has a question stem, and for
+  MCQs, options). A textbook passage that mentions PYQs in prose is not itself a PYQ. Leave
+  `pyqs` as an empty array `[]` if the chunk contains no real exam question.
 - For MCQs: if the question is statement-based ("how many of the following statements are
   correct" / "which of the statements given above is/are correct" — options like
   "Only one"/"Only two"/"All three"/"None"), extract each numbered statement's exact text
@@ -38,17 +47,20 @@ Required JSON shape:
   "content_type": "<one of the valid content_type ids>",
   "topic_id": "<one of the valid topic ids above, or null>",
   "context_prefix": "<1-2 sentences>",
-  "is_pyq": <true|false>,
-  "pyq": null | {
-    "question_format": "mcq" | "descriptive",
-    "question_text": "<the question stem, no options>",
-    "year": <int, or null if not stated>,
-    "options": ["..."],           // mcq only, omit/null for descriptive
-    "correct_option": "<text of the correct option, or null if not determinable>",  // mcq only
-    "statements": ["..."] | null,  // mcq only — see statement-based rule above; null for standalone-option MCQs and all descriptive questions
-    "marks": <int, or null>,      // descriptive only
-    "word_limit": <int, or null>  // descriptive only
-  }
+  "pyqs": [
+    {
+      "topic_id": "<this question's own topic id from the valid list above, or null>",
+      "question_format": "mcq" | "descriptive",
+      "question_text": "<the question stem, no options>",
+      "year": <int, or null if not stated>,
+      "options": ["..."],           // mcq only, omit/null for descriptive
+      "correct_option": "<text of the correct option, or null if not determinable>",  // mcq only
+      "statements": ["..."] | null,  // mcq only — see statement-based rule above; null for standalone-option MCQs and all descriptive questions
+      "marks": <int, or null>,      // descriptive only
+      "word_limit": <int, or null>  // descriptive only
+    }
+    // ... one object per real question found in this chunk, or [] if none
+  ]
 }
 
 Source document ({{SOURCE_DOC}}):

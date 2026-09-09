@@ -30,12 +30,19 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-21](decisions.md#decide-21) — Finalized exam_id/paper_id naming (institution_exam, paper scoped by composite key); restructured Essay/Ethics/GS/Optionals from separate exams into `upsc_cse` papers; IES/RBI real taxonomies imported
 - [DECIDE-22](decisions.md#decide-22) — Added `institutions` table + `exams.institution_id` FK — real join target for "institution," not just an unqueryable exam_id string prefix; naming grammar itself stays documentation, not data
 - [DECIDE-23](decisions.md#decide-23) — `pyq_explanations` schema designed against Recall's real BUG-04 failure: format-aware (statement-based vs standalone), validated discriminated union, elimination-strategy field, grounding citations; generation script itself deferred (on-demand batch job)
+- [DECIDE-24](decisions.md#decide-24) — Registered `upsc_epfo_apfc_eo_ao` (one exam, not two); real per-subject weights from RESEARCH-10 seeded via a backward-compatible `seed_topics.py` extension (`reused_topics` can now carry a weight, not just an id)
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
 - [BUG-02](bugs.md#bug-02) — Ported parsers discarded page boundaries, breaking `page_number`/`sections.page_start/end` (found and fixed same session, before any consumer existed)
 - [BUG-03](bugs.md#bug-03) — `\b(19|20)\d{2}\b` never matched a year after `_` (e.g. "report_2023") — `\b` doesn't fire between two word chars; fixed with a digit-lookaround, caught by a unit test
 - [BUG-04](bugs.md#bug-04) — Recall's PYQ explanation feature: 100% of wrong-option fields silently empty (statement-based MCQ schema mismatch, unvalidated LLM output) — informs `pyq_explanations` design, not a bug in this repo
+- [BUG-05](bugs.md#bug-05) — `sections.topic_id` FK pointed at `topics_old` (dropped by migrate_002) since S4 — invisible until the first real (non-synthetic) ingestion run; fixed via `migrate_004_fix_sections_topic_fk.py`, zero data loss
+- [BUG-06](bugs.md#bug-06) — `ingest.py` never called `load_dotenv()` despite `.env` existing since S4; API key only worked when manually exported in-shell — fixed, cost nothing (failed before any request was sent)
+- [BUG-07](bugs.md#bug-07) — `enrich_chunk` assumed ≤1 PYQ per chunk; crashed on a real dense-MCQ chunk (Haiku returned a list, code expected an object) — contract changed to always-a-list (`pyqs`), `build_pyqs` returns `list[PYQQuestion]`, 20/20 tests passing
+- [BUG-08](bugs.md#bug-08) — PYQ `year` never backfilled from `--published-date`; 17 of 33 real flagged chunks were this alone — fixed, `build_pyqs` now falls back to the caller-supplied date
+- [BUG-09](bugs.md#bug-09) — one bad question discarded valid siblings in the same chunk (confirmed: one real chunk lost 6 good questions to 1 bad one); topic_id was chunk-level not question-level — both fixed, per-item flagging + per-question topic with FK validation, 32/32 tests passing
+- [BUG-10](bugs.md#bug-10) — chunk-level topic failure still discarded question-level topic successes (6 real content chunks lost after BUG-09's fix) — `enrich_chunk` now extracts chunk metadata and per-question PYQs independently, 33/33 tests passing
 
 ## Research
 - [RESEARCH-01](research.md#research-01) — LanceDB reliability & concurrency
@@ -46,6 +53,8 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [RESEARCH-06](research.md#research-06) — Cross-exam shared taxonomy architecture (O*NET crosswalks, junction-table pattern) — feeds DECIDE-19
 - [RESEARCH-07](research.md#research-07) — EPFO-APFC 2026 + State PCS (UPPSC) exam pattern/syllabus, real sources
 - [RESEARCH-08](research.md#research-08) — State PCS eligibility (domicile/language) + syllabus for Rahul's 8 target states — 4 feasible, 1 excluded, 3 open
+- [RESEARCH-09](research.md#research-09) — EPFO family PYQ patterns (APFC/EO-AO combined paper since 2025, SSA/Steno thinner overlap) — weightage volatile/disputed, no verbatim PYQs recovered (gated PDFs)
+- [RESEARCH-10](research.md#research-10) — Real 2025 APFC/EO-AO paper (120 items) transcribed in full from Rahul's own file — verified exact subject weightage, supersedes RESEARCH-09's disputed estimates
 
 ## Risks
 - [RISK-01](risks.md#risk-01) — Scribe's grounding freshness lags until sync is re-run (inherent to DECIDE-03)
@@ -57,4 +66,4 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 
 ---
 
-**Next available IDs:** DECIDE-24 · BUG-05 · RESEARCH-09 · RISK-04 · ASSUME-02
+**Next available IDs:** DECIDE-25 · BUG-11 · RESEARCH-11 · RISK-04 · ASSUME-02

@@ -1,21 +1,53 @@
 # Project HANDOFF
 
 ## Exact next step
-Phase 1 (ingestion pipeline) is complete, naming/institution schema is finalized, and the
-`pyq_explanations` schema is designed (not yet the generation script — that's a deliberate,
-later, on-demand batch job). Repo is public on GitHub. Real next actions, no particular
-order:
-- Run `scripts/ingest.py` for real against actual content for any of the 7 seeded exams —
-  this is more valuable than more schema work right now, since nothing has been validated
-  against real PDFs yet, only synthetic smoke tests.
-- Import IES/RBI's real taxonomies if not already done this session (check `exam_topics`
-  row counts for `upsc_ies`/`rbi_gradeb` — should be 156/38 if done).
+9 exams now registered, 8 with a seeded topic taxonomy (only `rbi_depr` and `upsc_cse`'s
+non-prelims papers have none). `upsc_epfo_apfc_eo_ao` (DECIDE-24, S5) is the newest —
+seeded with REAL weights from an actual 2025 paper (RESEARCH-10), not coaching-site
+guesses. Still nothing has been ingested for real — Phase 1 is fully built but only
+smoke-tested against synthetic content. Real next actions, no particular order:
+- **Ingest the real 2025 APFC/EO/AO paper** (`Desktop/opportunities/govt notifications/
+  epfo_apfc_eoao_2025_question_paper.pdf`, English side) into `upsc_epfo_apfc_eo_ao` via
+  `scripts/ingest.py` — real content already exists for this exam specifically, no sourcing
+  needed. This would also be the first-ever real (non-synthetic) ingestion run for the whole
+  platform, so it validates Phase 1 end-to-end at the same time.
+- Otherwise, run `scripts/ingest.py` for real against actual content for any of the other 7
+  seeded exams.
 - When ready to build the PYQ-explanation batch-generation script: it must validate against
   `PYQExplanation` before writing (partial response = `ReviewNeededError`, never a silent
   partial write) and ground explanations in real retrieved chunks — both are direct fixes
   for BUG-04, not optional nice-to-haves.
 - Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after a
   real ingest run gives it something real to retrieve against.
+- `upsc_epfo_apfc_eo_ao`'s weights are from a single verified year (2025) — worth
+  recomputing from real ingested `pyq_bank` topic-tag frequency once more years of content
+  exist, rather than treating this as final (see DECIDE-24's caveat).
+
+## Session narrative (2026-09-09, S5)
+Rahul asked to move forward with Nyaya Core and, separately, whether UPSC APFC (an exam
+notification sitting in his `Desktop/opportunities/govt notifications/` folder, closing
+2026-09-11) was already registered — it wasn't. Researched real PYQ patterns via 3 parallel
+forks (APFC-specific, EO/AO-specific, wider EPFO family) — found APFC/EO/AO have been one
+combined paper since 2025 (not two exams), EO/AO itself is shelved for 2026 (EPFO withdrew
+the requisition), and SSA/Stenographer are a structurally different IBPS-conducted exam
+with thin syllabus overlap (RESEARCH-09). Weightage from coaching sites was disputed/
+self-contradicting across sources.
+
+While waiting on Rahul's naming call (autonomous-loop tick), found a real 2025 combined
+APFC/EO/AO question booklet already sitting in the same notifications folder — read all 44
+pages/120 items in full and extracted verified, real subject-wise question counts
+(RESEARCH-10), which corrected several of the disputed coaching-site numbers materially
+(Labour Codes: real 15, not the estimated 3-14 range).
+
+Rahul confirmed the exam should be named around all 3 posts together
+(`upsc_epfo_apfc/eo/ao` — adjusted to `upsc_epfo_apfc_eo_ao`, slashes aren't valid in an
+exam_id used as a SQLite PK/filename/URL param). Registered it (DECIDE-24): 7 topics reused
+from the existing canonical taxonomy with real weights (not the reuse path's previous flat
+1.0 — extended `seed_topics.py` to support this, backward compatible, verified against the
+existing `uppcs.json`), 20 new topics across 4 exam-specific subjects (English, Science/
+Computer, Labour Codes — 9 real named Acts — and Accountancy/Auditing/Insurance). All
+weights sum to exactly 120, matching the real paper. Logged as RESEARCH-09/RESEARCH-10/
+DECIDE-24 in the audit system.
 
 ## Session narrative (2026-09-06, S4)
 **Phase 1 is complete.** `scripts/ingest.py` walks a folder and drives

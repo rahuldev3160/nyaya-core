@@ -2,6 +2,8 @@
 data/lancedb/
 data/core.db
 data/*.log
+data/flagged_chunks.jsonl
+data/raw_ingest_staging/
 ingestion_log.json
 __pycache__/
 *.pyc
