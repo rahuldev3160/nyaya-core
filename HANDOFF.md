@@ -1,10 +1,31 @@
 # Project HANDOFF
 
 ## Exact next step
-**Waiting on Rahul: he's downloading more real EPFO/APFC/EO/AO papers + answer keys and
-will NotebookLM them into clean docx (2023 flagged highest priority).** The moment one is
-ready, ingest it exactly like the 2025 paper — see the command block below. That is
-literally the next concrete action; everything else here is secondary/parallel work.
+**Policy change (DECIDE-26, S7):** the 2025 paper's real yield was 36/120 questions — the
+other 84 were flagged and silently dropped (mostly missing `correct_option`, since the raw
+booklet has no answer key and Haiku won't guess; 11 chunks also dropped for no topic match,
+root cause not yet diagnosed). Rahul rejected this as the ongoing pattern: EPFO only has
+6-7 real past papers total, so losing 70% of one paper's questions materially hurts
+usability. **Going forward: flag-and-halt, not flag-and-continue** — see DECIDE-26 for
+full reasoning.
+
+**Waiting on Rahul: he's sourcing a real answer key for the 2025 paper** (separately from
+downloading more years). Once he has it, before re-ingesting:
+1. `scripts/ingest.py` needs a `--force` path — `ingestion_log.json` already has this
+   file's hash recorded as done, so a plain re-run will skip it entirely.
+2. Design how the real key gets matched to question numbers and merged in (format depends
+   on what Rahul actually sources — image, PDF, coaching-site text). This replaces
+   Haiku-guessing `correct_option`, which was the cause of ~70 of the 84 dropped items.
+3. The 11 "no registered topic matched" chunks need actual diagnosis (the OCR'd English
+   text for those pages wasn't retained from the failed run) — re-run
+   `extract_english_pages.py` on the source PDF and inspect pages 11/12/14/15/18/22 before
+   assuming it's a taxonomy gap vs. an extraction gap.
+Once designed, re-ingest and confirm 120/120 (or an explicitly understood, non-silent
+remainder) before calling the 2025 paper done.
+
+For new years as they arrive (2023 flagged highest priority, command block further below),
+apply the same no-skip standard once the answer-key mechanism exists — don't let a future
+run silently repeat the same 70%-loss pattern.
 
 **Also open, no blockers left on the DB side:** `upsc_cse`'s Optional papers are now
 correctly split into Paper I/II (`eco_optional_1`/`eco_optional_2`, `law_optional_1`/
@@ -33,11 +54,12 @@ Real next actions, no particular order:
 - **Once 2+ real years are ingested, recompute `exam_topics.weight` from real `pyq_bank`
   topic-tag frequency** (RISK-04) — current weights are seeded from the single 2025 paper,
   a real anchor but not a stable multi-year average.
-- **If Rahul finds a real answer key** (coaching sites reportedly publish some, per
-  RESEARCH-09) for any ingested paper, that's the single highest-leverage remaining lever —
-  most of the ~95 currently-flagged questions per paper are unanswerable-by-Haiku, not
-  genuinely bad extractions; a real key turns them into a deterministic lookup instead of an
-  LLM guess.
+- **Rahul is now sourcing a real answer key** for the 2025 paper specifically because of
+  this (DECIDE-26) — it's the single highest-leverage remaining lever: most of the 84
+  currently-unresolved questions are unanswerable-by-Haiku without one, not genuinely bad
+  extractions. Once sourced, re-ingest per the "Exact next step" section above (needs
+  `--force` support added first) and confirm the full 120, not just re-running the old
+  flow and accepting whatever comes out.
 - Otherwise, run `scripts/ingest.py` for real against actual content for any of the other 7
   seeded exams.
 - When ready to build the PYQ-explanation batch-generation script: it must validate against
@@ -46,6 +68,31 @@ Real next actions, no particular order:
   for BUG-04, not optional nice-to-haves.
 - Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after
   more real content is ingested to retrieve against.
+
+## Session narrative (2026-09-10, S7)
+Rahul asked where the project stood; asked how many of the 2025 paper's 120 real questions
+are actually in the DB right now. Queried `data/core.db` directly rather than trust the
+prior session's prose: **36**, confirmed. Investigated `data/flagged_chunks.jsonl` to
+explain the gap — found it's append-only across all 7 of S5's debug attempts (not reset
+between them), so an exact single-run count isn't cleanly recoverable from it alone, but
+the shape is clear: ~70 questions flagged for missing `correct_option` (no answer key in
+the raw booklet), 11 chunks (multiple questions each) dropped entirely for no topic match.
+Also found flagged entries store only `{file, chunk_index, reason}` — not the actual
+question text — and that `ingestion_log.json` already has this file's hash marked done, so
+a plain re-run will silently skip it rather than retry the flagged content.
+
+Rahul rejected the flag-and-continue pattern outright: EPFO only has 6-7 real past papers
+in total, so losing 70% of one paper's questions is a real usability problem, not an
+acceptable trade-off. He's going to source a real answer key himself, then wants a rebuild
+that gets all 120 — and set a general standing instruction: flag problems early and solve
+them, don't skip or work around them, because a flagged problem is always solvable but a
+skipped one silently erodes completeness. Logged as **DECIDE-26** (supersedes DECIDE-15's
+sampled-verification assumption for this specific scarce-content case). Updated "Exact
+next step" with the concrete pre-requisites for the next real run (`--force` reprocessing
+path, an actual answer-key-matching design, and diagnosing the 11 dropped chunks by
+re-extracting OCR text for their source pages) rather than just re-stating the old command.
+Nothing coded yet — waiting on Rahul to source the key before designing the matching
+mechanism against its real format.
 
 ## Session narrative (2026-09-09, S6)
 Rahul asked for a status/estimate ("what's complete, what's left, how long till the model's

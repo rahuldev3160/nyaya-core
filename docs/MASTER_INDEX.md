@@ -32,6 +32,7 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-23](decisions.md#decide-23) — `pyq_explanations` schema designed against Recall's real BUG-04 failure: format-aware (statement-based vs standalone), validated discriminated union, elimination-strategy field, grounding citations; generation script itself deferred (on-demand batch job)
 - [DECIDE-24](decisions.md#decide-24) — Registered `upsc_epfo_apfc_eo_ao` (one exam, not two); real per-subject weights from RESEARCH-10 seeded via a backward-compatible `seed_topics.py` extension (`reused_topics` can now carry a weight, not just an id)
 - [DECIDE-25](decisions.md#decide-25) — Split `eco_optional`/`law_optional` into Paper I/II (`_1`/`_2`) — each UPSC Optional is 2 papers/year with disjoint syllabi, same gap DECIDE-21 already fixed for mains_gs; zero dependent data, clean split via `migrate_004_split_optional_papers.py`
+- [DECIDE-26](decisions.md#decide-26) — No-skip ingestion policy for scarce exams: flag-and-halt, not flag-and-continue — supersedes DECIDE-15's sampled-verification default for EPFO-family content
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
@@ -69,4 +70,4 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 
 ---
 
-**Next available IDs:** DECIDE-26 · BUG-12 · RESEARCH-11 · RISK-05 · ASSUME-02
+**Next available IDs:** DECIDE-27 · BUG-12 · RESEARCH-11 · RISK-05 · ASSUME-02

@@ -501,6 +501,38 @@ not to model uncertainty explicitly now.
 **Rejected:** two separate `exam_id`s (`upsc_apfc`/`upsc_eo_ao`) — would duplicate every
 topic weight twice for content that is, per RESEARCH-10, literally one paper.
 
+### DECIDE-26 — No-skip ingestion: flag-and-halt, not flag-and-continue, for scarce exams {#decide-26}
+**Date:** 2026-09-10 | **Session:** S7
+
+**Decision:** For exams where real source material is scarce (EPFO-family: only 6-7 past
+papers exist in total), a chunk/question that can't be fully resolved during ingestion must
+be treated as a blocking problem to solve, not a row to drop and move past. Concretely:
+when Rahul sources a real answer key for a paper, re-ingestion must (a) actually reprocess
+that file (`ingestion_log.json`'s hash-skip currently prevents this — needs a `--force`
+path added to `scripts/ingest.py` before the next real run) and (b) resolve
+`correct_option` from the real key by question number, not from a Haiku guess — the
+previous run's ~84/120 unresolved questions were overwhelmingly "no correct_option" flags
+caused by Haiku lacking a key, not bad extractions. Any chunk that still can't be resolved
+after that (e.g. the 11 chunks flagged "no registered topic matched" — cause not yet
+diagnosed, OCR text for those pages wasn't retained) must stop the run and surface the
+specific unresolved item for Rahul to fix at the root (e.g. add a missing topic), rather
+than silently logging it to `flagged_chunks.jsonl` and reporting a lower final yield as
+success.
+
+**Rationale:** DECIDE-15's "sampled/high-stakes-only" verification policy assumed
+verification gaps are a long tail against abundant content. That assumption doesn't hold
+for an exam with only 6-7 real papers ever published — every unresolved question is a
+material fraction of all content that will ever exist for this exam, so completeness bar is
+higher here than the general policy. Rahul: "we can always find a solution to any kind of
+problem if that problem is flagged and not skipped or worked around."
+**Rejected:** keep flag-and-continue as-is and just accept the ~30% loss rate — rejected
+because it directly hurts usability of the practice-question feature on already-scarce
+content, per Rahul's explicit reasoning.
+**Not yet designed:** the actual answer-key-ingestion mechanism (how a sourced key — likely
+an image/PDF/coaching-site page — gets matched to question numbers and merged in before or
+during enrichment). Design this once Rahul has the real key in hand and its format is
+known, not speculatively now.
+
 ### DECIDE-25 — Split `eco_optional`/`law_optional` into Paper I/II {#decide-25}
 **Date:** 2026-09-09 | **Session:** S6
 
