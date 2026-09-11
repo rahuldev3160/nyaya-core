@@ -556,3 +556,89 @@ only true today.
 **Doc-hygiene fallout also fixed this session:** `PLAN.md`'s Phase 0 checklist still carried
 a stale "DECIDE-16 needs Rahul's confirmation" note from S3, never updated after DECIDE-16
 resolved in S4 — corrected to point at the actual outcome (DECIDE-16 → DECIDE-21 → this).
+
+### DECIDE-27 — correct_option is NEVER Haiku-determined, only merged from a real key {#decide-27}
+**Date:** 2026-09-12 | **Session:** S8
+
+**Decision:** Extends DECIDE-26 into a permanent structural rule, not just a per-run policy.
+`MCQQuestion.correct_option` is `Optional[str]`, defaults to `None`, and is set by exactly
+one path: `scripts/merge_answer_key.py` writing a letter it read from a real, human-sourced
+answer key — never by `enrich_chunk`'s Haiku call, even when Haiku is confident. Added
+`MCQQuestion.status` (`unverified`/`verified`/`void`) so "we don't know yet" and "UPSC itself
+dropped this item" are distinct, queryable states, not both collapsed into a null. Added
+`PYQBase.question_number` (the literal number printed on the question) since it's the only
+key a real answer key can be matched against — `question_id` is an internal chunk-derived
+string, never the exam's own numbering.
+
+**Why now:** Two real findings triggered this. (1) The 36 rows already in `pyq_bank` from
+the 2025 paper turned out to have `correct_option` filled by Haiku's own guess — the
+original `enrich_chunk_system.txt` literally asked for "text of the correct option, or null
+if not determinable" (see BUG-12). (2) Rahul separately flagged that a NotebookLM-generated
+"solved answer key" for the 2025 paper is not trustworthy either — he needs to verify
+answers himself. Both are the same root problem (an LLM's own belief about a right answer,
+presented as data) — DECIDE-26 already banned this for *dropped* questions; this makes it a
+structural guarantee for *all* questions, not a per-session judgment call.
+
+**Real official answer keys exist for 5 EPFO years already on disk** (2012/2016/2017/
+2021/2023, `~/Desktop/UPSC/epfo_apfc_eo_ao/*Answer-Key*.pdf`) — visually confirmed genuine
+UPSC-format scanned sheets (exam code, Series letter, dropped-item count), not LLM output.
+Each covers 4 series (A/B/C/D, different question order per series) on separate pages —
+`scripts/extract_answer_key.py` transcribes all 4 per PDF; the caller must pick the series
+matching the actual question-paper PDF's own printed series (never assume A).
+
+**Proof of concept, same session:** ingested the 2023 EO/AO GAT paper (using the clean
+NotebookLM-retyped digital PDF in `pyqs_formatted(notebooklm)/`, not the scanned original —
+avoids OCR errors and the bilingual Hindi/English page-pair duplication the scanned version
+has) and merged the real Series A key: **114/120 questions verified against a real official
+key, 0 guessed.** 6 questions (115-120, quantitative aptitude) didn't extract at all — no
+registered topic for that subject yet (see RISK-05) — a real, understood, non-silent gap,
+not a re-run of DECIDE-26's original 70%-loss problem.
+
+### DECIDE-28 — every pyq_bank row carries its exact source file(s) {#decide-28}
+**Date:** 2026-09-12 | **Session:** S8
+
+**Decision:** Rahul's explicit ask: be able to trace any question, and any verified answer,
+back to the literal file it came from, so a source later found to be wrong can be found and
+re-checked rather than guessed at. Added `pyq_bank.source_file` (the question-paper file the
+row was extracted from, threaded through `enrich_chunk`/`build_pyqs`/`persist_pyq` from
+`ingest.py`'s own file path — not inferred) and `pyq_bank.answer_key_file` (the exact
+answer-key PDF + series that set `correct_option`, e.g.
+`".../UPSC-EPFO-EO-AO-Answer-Key-2023.pdf#series=A"`, set only by
+`scripts/merge_answer_key.py`). Both are plain columns, not a separate source-registry table
+— a row already has everything needed to answer "where did this come from," no join needed.
+`scripts/migrate_006_source_provenance.py` backfilled both for the two documents ingested
+before this column existed (2025's paper, 2023's `notebooklm` PDF + its verified key).
+
+### DECIDE-29 — fresh, EPFO-specific topic taxonomy replacing 6 reused UPSC-Prelims topics {#decide-29}
+**Date:** 2026-09-12 | **Session:** S8
+
+**Decision:** Rahul, reviewing the taxonomy before letting the 2023 APFC General Studies
+paper ingest: "curate fresh taxonomy for epfo_apfc_eo_ao exams, topics are not exactly
+similar to upsc_prelims syllabus." Investigation found 6 of the exam's 25 seeded topics
+(`polity`, `economy`, `current_affairs`, `history_amac`, `modern_history`,
+`reading_comprehension`) were literally the same shared canonical rows DECIDE-19's
+exam-agnostic model lets `upsc_cse`/State PCS reuse — appropriate when depth/scope
+genuinely match (IES/RBI), wrong here since EPFO's coverage of these subjects is real but
+shallower/differently-scoped than UPSC Prelims'. `reading_comprehension` was even parented
+under `comprehension` -> `csat`, a UPSC-CSE-Paper-2-only concept EPFO doesn't have. `csat`
+itself was linked to this exam with zero actual usage — a stray import, unlinked outright.
+
+Sourced the real replacement from the actual UPSC EPFO 2026 notification's Appendix-I
+("Scheme, Syllabus, Weightage") — `~/Desktop/opportunities/govt notifications/epfo 2026
+notification.pdf`, page 22 — the 9 real syllabus subjects, not invented. Created 8 new
+EPFO-scoped topics (`epfo_governance_constitution`, `epfo_economy_dev_issues`,
+`epfo_current_events`, `epfo_culture_heritage_freedom` with two children
+`epfo_ancient_medieval_culture`/`epfo_modern_freedom_struggle`, `epfo_reading_comprehension`
+re-parented under this exam's own `general_english`, and
+`epfo_quant_stats_mental_ability` — syllabus subject vi, entirely missing before this,
+resolving RISK-05). `scripts/migrate_007_epfo_fresh_taxonomy.py` retagged all 228 affected
+`pyq_bank` rows and 53 LanceDB chunk rows from the old shared topic_ids to the new ones,
+unlinked the 7 old `exam_topics` rows for this exam (canonical rows untouched for their real
+owners), and recomputed every `exam_topics.weight` for this exam from real observed
+frequency across all 546 then-ingested questions (RISK-04's payoff, no longer
+single-year-seeded).
+
+**Immediate real payoff:** the 2023 APFC General Studies paper, ingested right after this
+fix, got 114/120 questions cleanly tagged (only 3 chunks flagged) — a sharp improvement over
+the old taxonomy's flagging rate on comparable content. 608 total verified questions across
+6 real paper-instances (5 GAT years + this GS year) as of this session.

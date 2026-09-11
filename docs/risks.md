@@ -24,7 +24,9 @@ likely candidates) before opening this platform to concurrent users.
 **Escalation trigger:** Any plan to onboard a second real user.
 
 ### RISK-04 — `upsc_epfo_apfc_eo_ao` topic weights seeded from a single verified year {#risk-04}
-**Date:** 2026-09-09 | **Session:** S5 | **Status:** Open
+**Date:** 2026-09-09 | **Session:** S5 | **Status:** Resolved 2026-09-12 (S8, DECIDE-29) —
+`migrate_007_epfo_fresh_taxonomy.py` recomputed every `exam_topics.weight` for this exam
+from real observed frequency across 546 questions spanning all 5 ingested GAT years.
 
 **Risk:** `exam_topics.weight` for this exam was seeded from RESEARCH-10's real 2025 paper —
 a genuine improvement over coaching-site guesses (RESEARCH-09), but still only one data
@@ -49,3 +51,21 @@ A straight copy into the new schema would leave most new fields null.
 **Mitigation:** Phase 3 re-ingests from the original source files through the new pipeline
 (re-chunk, re-embed, re-label) rather than migrating the old vector store directly. Slower
 but produces complete, correctly-typed rows.
+
+### RISK-05 — `upsc_epfo_apfc_eo_ao` has no quantitative-aptitude topic {#risk-05}
+**Date:** 2026-09-12 | **Session:** S8 | **Status:** Partially resolved same session
+(DECIDE-29 added `epfo_quant_stats_mental_ability`) — the specific 6 flagged 2023 GAT
+questions (Q115-120) and any other content silently lost to this gap across the other 4
+years still need re-processing now that the topic exists; not yet done.
+
+**Risk:** The 2023 EO/AO GAT paper's questions 115-120 (speed/distance, ages, coding-
+decoding, averages, probability — real quantitative aptitude content) extracted zero PYQs:
+`enrich.load_topics()`'s valid set (seeded from the 2025 paper's 14 topics) has no matching
+topic, so Haiku correctly returned `topic_id: null` rather than force a bad match, and those
+6 questions were flagged, not persisted. The 2025 paper apparently didn't include this
+subject, so the gap wasn't visible until a second year was ingested.
+**Mitigation:** Add a `quantitative_aptitude`/`numerical_ability` topic (or a small set of
+sub-topics) to `exam_topics` for `upsc_epfo_apfc_eo_ao` before re-attempting these 6
+questions — a `scripts/seed_topics.py` addition, not a schema change. Check other ingested
+years for the same subject once the topic exists, in case any of them lost content to the
+same gap silently before this was noticed.

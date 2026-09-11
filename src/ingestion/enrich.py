@@ -149,7 +149,7 @@ def build_chunk_metadata(
 
 def build_pyqs(
     chunk_id: str, exam_id: str, source_type: SourceType, data: dict, valid_topic_ids: set[str],
-    paper_id: str | None = None, published_date: date | None = None,
+    paper_id: str | None = None, published_date: date | None = None, source_file: str | None = None,
 ) -> tuple[list[PYQQuestion], list[str]]:
     """A chunk can legitimately contain more than one complete question (a dense MCQ
     test-booklet chunk, not just Devthorium-style prose with an occasional embedded PYQ) —
@@ -201,14 +201,20 @@ def build_pyqs(
             year=year,
             question_text=p["question_text"],
             source_type=source_type,
+            question_number=p.get("question_number"),
+            source_file=source_file,
         )
         if p["question_format"] == "mcq":
-            if not p.get("correct_option"):
-                failures.append(f"MCQ PYQ #{i} from {chunk_id} has no correct_option — needs manual review.")
+            options = p.get("options") or []
+            if not options or any(not isinstance(o, str) for o in options):
+                failures.append(f"MCQ PYQ #{i} from {chunk_id} has malformed/incomplete "
+                                 f"options ({options!r}) — needs manual review.")
                 continue
+            # correct_option is never set here (DECIDE-26/27) — it stays unverified until a
+            # real answer key is merged in by scripts/merge_answer_key.py. A missing answer
+            # is no longer a reason to drop an otherwise-valid extraction.
             results.append(MCQQuestion(
-                **base, options=p["options"], correct_option=p["correct_option"],
-                statements=p.get("statements"),
+                **base, options=options, statements=p.get("statements"),
             ))
         else:
             results.append(DescriptiveQuestion(
@@ -217,32 +223,60 @@ def build_pyqs(
     return results, failures
 
 
-def persist_pyq(pyq: PYQQuestion, conn: sqlite3.Connection) -> None:
-    """Writes one extracted PYQ to `pyq_bank`, upserting by question_id."""
+def _duplicate_question_number(pyq: PYQQuestion, conn: sqlite3.Connection) -> bool:
+    """BUG-13: a question can straddle two adjacent chunks and get extracted (with a
+    different, chunk-derived question_id) from both — the ON CONFLICT(question_id) upsert
+    can't catch this since the two rows have different ids. A real question_number is unique
+    within one (exam_id, paper_id, year), so check for a prior row there before inserting."""
+    if pyq.question_number is None:
+        return False
+    row = conn.execute(
+        "SELECT 1 FROM pyq_bank WHERE exam_id = ? AND paper_id IS ? AND year = ? "
+        "AND question_number = ? AND question_id != ?",
+        (pyq.exam_id, pyq.paper_id, pyq.year, pyq.question_number, pyq.question_id),
+    ).fetchone()
+    return row is not None
+
+
+def persist_pyq(pyq: PYQQuestion, conn: sqlite3.Connection) -> bool:
+    """Writes one extracted PYQ to `pyq_bank`, upserting by question_id. Returns False (no
+    write) when a different question_id already holds this same real question_number within
+    the same exam/paper/year — a chunk-boundary duplicate (BUG-13), not a new question."""
+    if _duplicate_question_number(pyq, conn):
+        return False
+
     is_mcq = isinstance(pyq, MCQQuestion)
     conn.execute(
         """INSERT INTO pyq_bank
-           (question_id, exam_id, paper_id, topic_id, question_format, year, question_text,
-            options, correct_option, statements, marks, word_limit, source_type, verified_by, reviewed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (question_id, exam_id, paper_id, topic_id, question_format, year, question_number,
+            question_text, options, correct_option, status, statements, marks, word_limit,
+            source_type, source_file, verified_by, answer_key_file, reviewed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(question_id) DO UPDATE SET
              topic_id=excluded.topic_id, year=excluded.year,
+             question_number=excluded.question_number,
              question_text=excluded.question_text, options=excluded.options,
-             correct_option=excluded.correct_option, statements=excluded.statements,
-             marks=excluded.marks, word_limit=excluded.word_limit""",
+             statements=excluded.statements,
+             marks=excluded.marks, word_limit=excluded.word_limit,
+             source_file=excluded.source_file""",
         (
             pyq.question_id, pyq.exam_id, pyq.paper_id, pyq.topic_id, pyq.question_format, pyq.year,
+            pyq.question_number,
             pyq.question_text,
             json.dumps(pyq.options) if is_mcq else None,
             pyq.correct_option if is_mcq else None,
+            pyq.status if is_mcq else "unverified",
             json.dumps(pyq.statements) if is_mcq and pyq.statements else None,
             None if is_mcq else pyq.marks,
             None if is_mcq else pyq.word_limit,
-            pyq.source_type, pyq.verified_by,
+            pyq.source_type, pyq.source_file,
+            pyq.verified_by,
+            pyq.answer_key_file if is_mcq else None,
             pyq.reviewed_at.isoformat() if pyq.reviewed_at else None,
         ),
     )
     conn.commit()
+    return True
 
 
 def enrich_chunk(
@@ -254,6 +288,7 @@ def enrich_chunk(
     topics: list[tuple[str, str]],
     published_date: date | None = None,
     paper_id: str | None = None,
+    source_file: str | None = None,
 ) -> tuple[ChunkMetadata | None, list[PYQQuestion], list[str], str | None, dict]:
     """One Haiku call per chunk. Pass the same `system_prompt` (from build_system_prompt(),
     built once per document) across every chunk of that document to get the cache hit.
@@ -273,7 +308,7 @@ def enrich_chunk(
     """
     response = client.messages.create(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=4096,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": build_user_prompt(chunk)}],
     )
@@ -283,7 +318,18 @@ def enrich_chunk(
         "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
     }
-    data = parse_enrichment(response.content[0].text)
+    try:
+        data = parse_enrichment(response.content[0].text)
+    except json.JSONDecodeError:
+        # A chunk packed with many dense MCQs can produce a response that gets cut off
+        # mid-string when the real content genuinely needs more than the token budget —
+        # confirmed real (2017 EPFO paper). One malformed response must flag this chunk and
+        # let the batch continue, not crash the entire ingestion run (BUG-09's principle
+        # extended to a whole-response parse failure, not just a per-item validation one).
+        reason = (f"chunk {chunk.chunk_index} of {chunk.source_doc} (page {chunk.page_number}): "
+                  f"Haiku's response was not valid JSON (likely truncated by max_tokens) — "
+                  f"needs manual review or a smaller chunk.")
+        return None, [], [], reason, usage
 
     metadata: ChunkMetadata | None = None
     metadata_failure: str | None = None
@@ -296,5 +342,6 @@ def enrich_chunk(
 
     valid_topic_ids = {tid for tid, _ in topics}
     pyqs, pyq_failures = build_pyqs(chunk_id_for(exam_id, chunk), exam_id, source_type, data,
-                                     valid_topic_ids, paper_id=paper_id, published_date=published_date)
+                                     valid_topic_ids, paper_id=paper_id, published_date=published_date,
+                                     source_file=source_file)
     return metadata, pyqs, pyq_failures, metadata_failure, usage

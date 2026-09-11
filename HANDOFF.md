@@ -1,31 +1,61 @@
 # Project HANDOFF
 
 ## Exact next step
-**Policy change (DECIDE-26, S7):** the 2025 paper's real yield was 36/120 questions — the
-other 84 were flagged and silently dropped (mostly missing `correct_option`, since the raw
-booklet has no answer key and Haiku won't guess; 11 chunks also dropped for no topic match,
-root cause not yet diagnosed). Rahul rejected this as the ongoing pattern: EPFO only has
-6-7 real past papers total, so losing 70% of one paper's questions materially hurts
-usability. **Going forward: flag-and-halt, not flag-and-continue** — see DECIDE-26 for
-full reasoning.
+**DECIDE-27/28/29 (S8) landed and paid off immediately: 6 real EPFO paper-instances (5 GAT
+years + 2023 GS) now verified against real official answer keys, 608 total verified
+questions, 0 ever guessed by an LLM.** Schema has `question_number`, `status`
+(unverified/verified/void), `source_file` + `answer_key_file` (DECIDE-28 — every row
+traceable to its exact source). `scripts/extract_answer_key.py` transcribes a scanned
+official key PDF (per-series, Haiku vision — literal transcription, never judgment);
+`scripts/merge_answer_key.py` merges one series' answers into `pyq_bank` by
+`question_number`, zero LLM.
 
-**Waiting on Rahul: he's sourcing a real answer key for the 2025 paper** (separately from
-downloading more years). Once he has it, before re-ingesting:
-1. `scripts/ingest.py` needs a `--force` path — `ingestion_log.json` already has this
-   file's hash recorded as done, so a plain re-run will skip it entirely.
-2. Design how the real key gets matched to question numbers and merged in (format depends
-   on what Rahul actually sources — image, PDF, coaching-site text). This replaces
-   Haiku-guessing `correct_option`, which was the cause of ~70 of the 84 dropped items.
-3. The 11 "no registered topic matched" chunks need actual diagnosis (the OCR'd English
-   text for those pages wasn't retained from the failed run) — re-run
-   `extract_english_pages.py` on the source PDF and inspect pages 11/12/14/15/18/22 before
-   assuming it's a taxonomy gap vs. an extraction gap.
-Once designed, re-ingest and confirm 120/120 (or an explicitly understood, non-silent
-remainder) before calling the 2025 paper done.
+**Per-paper result (all against real, visually-verified official UPSC answer keys):**
+| Year | Paper | Verified | Void (UPSC-dropped) | Unverified/no-number |
+|---|---|---|---|---|
+| 2012 | APFC GAT (Series D) | 85 | 1 | 4 |
+| 2016 | APFC GAT (Series A) | 87 | 0 | 3 |
+| 2017 | EO/AO GAT (Series A) | 110 | 0 | 0 |
+| 2021 | EPFO GAT (Series A) | 98 | 1 | 7 |
+| 2023 | EO/AO GAT (Series A) | 114 | 0 | 0 |
+| 2023 | APFC GS (Series A) | 114 | 0 | 0 (6 never extracted) |
 
-For new years as they arrive (2023 flagged highest priority, command block further below),
-apply the same no-skip standard once the answer-key mechanism exists — don't let a future
-run silently repeat the same 70%-loss pattern.
+Each shortfall from 120 is a real, understood, non-silent gap — mostly a handful of
+chunk-boundary/malformed-option extraction misses (BUG-13/14) — never a guessed answer
+standing in for a real one.
+
+**Taxonomy fixed (DECIDE-29), unblocking the GS paper:** Rahul reviewed the topic taxonomy
+before letting GS ingest and flagged that 6 of 25 topics were reused UPSC-Prelims-style
+canonical rows (`polity`/`economy`/`current_affairs`/`history_amac`/`modern_history`/
+`reading_comprehension`) with real depth/scope mismatches — EPFO's actual coverage isn't
+"exactly similar" to UPSC Prelims'. Replaced with 8 fresh EPFO-specific topics sourced from
+the real UPSC EPFO 2026 notification's Appendix-I syllabus (`~/Desktop/opportunities/govt
+notifications/epfo 2026 notification.pdf`, page 22) — not invented. This also added the
+previously-missing `epfo_quant_stats_mental_ability` topic (RISK-05's real cause) and, as a
+side effect of recomputing weights from real 546-question frequency, resolved RISK-04. The
+GS paper ingested cleanly right after (only 3/16 chunks flagged) — a direct, measurable
+payoff of the fresh taxonomy.
+
+**Still open, real work, no particular order:**
+- **RISK-05, remainder:** the topic now exists, but the specific 6 flagged 2023 GAT
+  questions (Q115-120) and possibly similar content in other years weren't re-processed
+  against it — worth a targeted re-run once there's time, not urgent.
+- **2025 paper: still NOT re-verified with a real key.** The `.numbers` "Solved Answer Key"
+  in `pyqs_formatted(notebooklm)/` is NotebookLM-generated (Rahul confirmed: "the answers
+  are llm generated so can't be trusted, i need to verify answers yet") — never merge it.
+  The 36 existing 2025 rows are `unverified` (BUG-12 — they were Haiku's own guesses). A
+  cleaner **digital, English-only NotebookLM-retyped 2025 paper** exists in that same folder
+  (`...APFC & EO/AO Exam 2025...`) — re-ingest from that instead of the original bilingual
+  scan already in `raw_ingest_staging/` (same fix 2023 GAT/GS got this session), then merge
+  a real key once Rahul sources one himself.
+- Fix BUG-13's root cause in `chunk_document()` itself (the persist-time dedup added this
+  session is a safety net, not a fix to the chunk-boundary overlap).
+- A few individual items are flagged for manual review, not silently merged: 2017's Q51 and
+  2023 GS's Q40/Q71 (key says a letter but too few options were extracted — real extraction
+  defects), see `data/flagged_chunks.jsonl` and the merge-script warnings in session log.
+- Consider the same taxonomy-freshness review (DECIDE-29's question) for any other exam that
+  reuses canonical topics via `exam_topics` — IES/RBI's imports were real per-exam
+  taxonomies from the start so likely fine, but worth a deliberate check, not an assumption.
 
 **Also open, no blockers left on the DB side:** `upsc_cse`'s Optional papers are now
 correctly split into Paper I/II (`eco_optional_1`/`eco_optional_2`, `law_optional_1`/
@@ -35,39 +65,109 @@ before any Eco/Law Optional content can be ingested (`enrich.load_topics()` will
 otherwise). If Rahul sources a real Economics/Law Optional syllabus for either paper, seed
 it via `scripts/seed_topics.py`'s existing pattern before attempting ingestion.
 
-Phase 1 (ingestion) is validated end-to-end against real content — `upsc_epfo_apfc_eo_ao`'s
-real 2025 paper is fully ingested: 36 verified questions in `pyq_bank` across 14 correctly
-per-question-tagged topics (via 6 real bug fixes — BUG-05 through BUG-10, all in
-`docs/bugs.md`). 9 exams registered, 8 with a seeded topic taxonomy (only `rbi_depr` and
-`upsc_cse`'s 4 Optional papers have none — mains_gs1-4/prelims_gs/essay/upsc_ies/rbi_gradeb/
-State PCS all do).
-Real next actions, no particular order:
-- **Ingest the other APFC/EO/AO years as Rahul downloads them.** He's actively sourcing
-  more (2023 flagged highest priority — pairs with RESEARCH-09's disputed 2023-vs-2025
-  weightage comparison). Same command each time:
-  `.venv/bin/python scripts/extract_english_pages.py --input <bilingual.pdf> --output
-  data/raw_ingest_staging/upsc_epfo_apfc_eo_ao/<year>.pdf` (only if the source is a
-  bilingual scan like the 2025 one — skip this step entirely for a NotebookLM-cleaned
-  English-only `.docx`, which routes straight through `digital_pdf.py`, no OCR needed) then
-  `.venv/bin/python scripts/ingest.py --folder data/raw_ingest_staging/upsc_epfo_apfc_eo_ao
-  --exam-id upsc_epfo_apfc_eo_ao --source-type official_pyq --published-date <year>-01-01`.
-- **Once 2+ real years are ingested, recompute `exam_topics.weight` from real `pyq_bank`
-  topic-tag frequency** (RISK-04) — current weights are seeded from the single 2025 paper,
-  a real anchor but not a stable multi-year average.
-- **Rahul is now sourcing a real answer key** for the 2025 paper specifically because of
-  this (DECIDE-26) — it's the single highest-leverage remaining lever: most of the 84
-  currently-unresolved questions are unanswerable-by-Haiku without one, not genuinely bad
-  extractions. Once sourced, re-ingest per the "Exact next step" section above (needs
-  `--force` support added first) and confirm the full 120, not just re-running the old
-  flow and accepting whatever comes out.
+Phase 1 (ingestion) is validated end-to-end against real content, now with real verified
+answers too. 9 exams registered, 8 with a seeded topic taxonomy (only `rbi_depr` and
+`upsc_cse`'s 4 Optional papers have none). Real next actions, no particular order:
 - Otherwise, run `scripts/ingest.py` for real against actual content for any of the other 7
   seeded exams.
 - When ready to build the PYQ-explanation batch-generation script: it must validate against
   `PYQExplanation` before writing (partial response = `ReviewNeededError`, never a silent
   partial write) and ground explanations in real retrieved chunks — both are direct fixes
-  for BUG-04, not optional nice-to-haves.
+  for BUG-04, not optional nice-to-haves. Now unblocked in principle for any question with
+  `status='verified'`, since a trustworthy `correct_option` is a prerequisite for this.
 - Phase 2 (hybrid retrieval + API) is the bigger remaining phase — better sequenced after
   more real content is ingested to retrieve against.
+
+## Session narrative (2026-09-12, S8)
+Rahul asked for a plan for how to proceed without correct answer keys (he'll feed real ones
+later, standing rule: no question ever solved by the LLM). Answered with a split plan (what's
+unblocked vs. hard-blocked); he confirmed proceeding now with "capture now, verify later."
+
+Investigated `~/Desktop/UPSC/epfo_apfc_eo_ao/` (Rahul pointed me there) and found real
+official answer keys already on disk for 5 EPFO years (2012/2016/2017/2021/2023) — visually
+confirmed genuine UPSC scans (exam code, Series letter, dropped-item count), not the
+NotebookLM "Solved Answer Key" for 2025 which Rahul separately flagged as untrustworthy
+("the answers are llm generated so can't be trusted, i need to verify answers yet").
+
+Built DECIDE-27 (see decisions.md): schema gets `question_number` + `status`
+(unverified/verified/void), `correct_option` only ever set by a real key merge, never by
+Haiku. Found BUG-12 while doing this — the 36 existing 2025 rows had `correct_option` filled
+by Haiku's own guess (the original prompt asked for it), not real data; reset to unverified.
+Also fixed a crash (a null entry inside an extracted `options` array took down a whole
+ingestion run) — now a per-item flagged failure instead.
+
+Built `scripts/extract_answer_key.py` (Haiku vision transcribes a scanned key PDF page —
+literal reading, never asked to judge correctness) and `scripts/merge_answer_key.py` (pure
+data join by `question_number`). First extraction attempt merged all 4 series together and
+produced ~100 false conflicts — the key PDFs put one full series per page (A/B/C/D), not one
+shared grid; fixed to key results by series and pick the one matching the question paper's
+own printed series.
+
+Ingested the 2023 EO/AO GAT paper as proof. First attempt (raw bilingual scan) produced 190
+rows for a 120-question paper — the paper interleaves Hindi and English pages for Part B,
+and nothing stripped the Hindi ones, so many questions got extracted twice (BUG-13, partly).
+Killed it, cleaned up (`pyq_bank`/`sections`/LanceDB rows for that doc), and Rahul redirected
+me to `pyqs_formatted(notebooklm)/` — clean, digital-text, English-only NotebookLM-retyped
+versions of several papers already exist there (2023 EO/AO GAT, 2023 APFC GS, and 2025)
+rather than needing OCR on the raw scans at all. Re-ingested from that file: 114/120
+questions extracted cleanly (6 missing — no `quantitative_aptitude` topic seeded yet, RISK-05
+— and 5 small chunk-boundary duplicates, BUG-13, manually deduped). Merged the real Series A
+key: **114/114 verified against the real official answer, 0 guessed.**
+
+Logged DECIDE-27, BUG-12, BUG-13, RISK-05 in the audit docs.
+
+**Continued same session:** Rahul asked to proceed with the remaining 4 years, adding a
+standing instruction to always track exact source files so a bad source can be found and
+fixed later. Added DECIDE-28: `pyq_bank.source_file` + `answer_key_file` columns, threaded
+through `enrich_chunk`/`build_pyqs`/`persist_pyq`, backfilled for the two already-ingested
+docs via `scripts/migrate_006_source_provenance.py`. While doing this, turned BUG-13's
+manual-dedup workaround into a real fix: `persist_pyq` now checks for an existing
+`(exam_id, paper_id, year, question_number)` before inserting and skips true duplicates
+(can't rely on `ON CONFLICT(question_id)` since a chunk-boundary duplicate gets a different
+chunk-derived id) — added 3 tests locking this in.
+
+Ingested 2016/2017/2021 (all bilingual scans, same `extract_english_pages.py` treatment as
+2023) and 2012 (English-only but its coaching-compiled PDF's first pages are text-heavy
+while its real content pages are image-only — `get_page_text_quality`'s first-3-pages sample
+got fooled into picking `digital_pdf` when it needed `scanned_pdf`; added a `--parser`
+override flag to `ingest.py` rather than patch this one file around the heuristic, since the
+same false-positive could hit a future coaching-compiled PDF). Hit and fixed BUG-14 mid-batch
+on 2017: a chunk packed with dense MCQs produced a response Haiku cut off mid-string, and
+the unguarded `json.loads` crashed the entire run — raised `max_tokens` to 4096 and made a
+parse failure a flagged per-chunk failure instead of fatal. Also fixed a validation bug in
+`merge_answer_key.py`: a dropped item's "X" placeholder was rejected by the A/B/C/D letter
+check before the dropped-item exemption ever got a chance to apply (hit on 2021's real
+dropped Q71).
+
+Merged all 4 real keys (2012 Series D, others Series A — each visually confirmed to match
+its own question paper's printed series). 494 real verified questions across 5 GAT years,
+plus 2 real UPSC-dropped items correctly marked `void`, zero ever guessed by an LLM.
+
+**Continued further same session:** before letting the 2023 APFC General Studies paper
+ingest, Rahul reviewed the topic taxonomy and rejected reusing `upsc_prelims_gs`'s topics —
+"curate fresh taxonomy for epfo_apfc_eo_ao exams, topics are not exactly similar to
+upsc_prelims syllabus." Investigating found the real problem was more specific than "similar
+to prelims": 6 of the 25 already-seeded topics (`polity`, `economy`, `current_affairs`,
+`history_amac`, `modern_history`, `reading_comprehension`) were the exact same shared
+canonical rows `upsc_cse`/State PCS use (DECIDE-19's reuse mechanism, applied here without
+enough scrutiny) — `reading_comprehension` was even parented under `comprehension` ->
+`csat`, a UPSC-CSE-Paper-2-only concept EPFO doesn't have at all. Found the real official
+syllabus in `~/Desktop/opportunities/govt notifications/epfo 2026 notification.pdf`'s
+Appendix-I (9 real subjects, not invented) and built DECIDE-29 from it: 8 new EPFO-scoped
+topics, `migrate_007_epfo_fresh_taxonomy.py` retagging all 228 affected `pyq_bank` rows + 53
+chunk rows, unlinking the old shared `exam_topics` rows (canonical topics themselves
+untouched for their real owners), and recomputing every weight from real 546-question
+frequency (a bonus real fix for RISK-04). This also added the syllabus's missing "Elementary
+Mathematics, Statistics and General Mental Ability" subject, resolving RISK-05's root cause.
+
+Registered the `gs` paper_id, ingested the 2023 APFC GS paper (clean NotebookLM digital PDF,
+same reasoning as the GAT papers) — 114/120 extracted cleanly, only 3/16 chunks flagged, a
+sharp improvement directly attributable to the fresh taxonomy. Merged its real Series A key:
+**114/114 verified.**
+
+**Session final: 608 real verified questions across 6 paper-instances (5 GAT years + 2023
+GS), zero ever guessed by an LLM.** 2025's re-verification is the one piece intentionally
+left open — waiting on Rahul for a real, non-LLM key.
 
 ## Session narrative (2026-09-10, S7)
 Rahul asked where the project stood; asked how many of the 2025 paper's 120 real questions

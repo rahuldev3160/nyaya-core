@@ -33,6 +33,9 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-24](decisions.md#decide-24) — Registered `upsc_epfo_apfc_eo_ao` (one exam, not two); real per-subject weights from RESEARCH-10 seeded via a backward-compatible `seed_topics.py` extension (`reused_topics` can now carry a weight, not just an id)
 - [DECIDE-25](decisions.md#decide-25) — Split `eco_optional`/`law_optional` into Paper I/II (`_1`/`_2`) — each UPSC Optional is 2 papers/year with disjoint syllabi, same gap DECIDE-21 already fixed for mains_gs; zero dependent data, clean split via `migrate_004_split_optional_papers.py`
 - [DECIDE-26](decisions.md#decide-26) — No-skip ingestion policy for scarce exams: flag-and-halt, not flag-and-continue — supersedes DECIDE-15's sampled-verification default for EPFO-family content
+- [DECIDE-27](decisions.md#decide-27) — `correct_option` is never Haiku-determined, only merged from a real answer key by `question_number`; added `status` (unverified/verified/void) and `question_number` fields; proved end-to-end on the 2023 EPFO GAT paper (114/120 verified, 0 guessed)
+- [DECIDE-28](decisions.md#decide-28) — every `pyq_bank` row carries `source_file` (question paper) and `answer_key_file` (verified answer's exact key+series) — any row traceable back to its literal source, no join needed
+- [DECIDE-29](decisions.md#decide-29) — replaced 6 reused UPSC-Prelims-style topics with 8 fresh EPFO-specific ones sourced from the real UPSC EPFO 2026 notification syllabus (Appendix-I); retagged 228 pyq_bank + 53 chunk rows; recomputed all exam_topics.weight from real 546-question frequency (resolves RISK-04); added the previously-missing quant/mental-ability topic (resolves RISK-05)
 
 ## Bugs
 - [BUG-01](bugs.md#bug-01) — Scribe's `generate_answers.py` truncates grounding chunks to 400 chars (found, not yet fixed — scheduled for Phase 4)
@@ -46,6 +49,9 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [BUG-09](bugs.md#bug-09) — one bad question discarded valid siblings in the same chunk (confirmed: one real chunk lost 6 good questions to 1 bad one); topic_id was chunk-level not question-level — both fixed, per-item flagging + per-question topic with FK validation, 32/32 tests passing
 - [BUG-10](bugs.md#bug-10) — chunk-level topic failure still discarded question-level topic successes (6 real content chunks lost after BUG-09's fix) — `enrich_chunk` now extracts chunk metadata and per-question PYQs independently, 33/33 tests passing
 - [BUG-11](bugs.md#bug-11) — `PLAN.md` cited DECIDE-16 as still open 3 sessions after it resolved (superseded by DECIDE-21/25 too) — caused a wrong answer to Rahul; fixed, lesson: trust decisions.md's own status, not a citing doc's framing
+- [BUG-12](bugs.md#bug-12) — 36 "extracted" 2025 answers were Haiku's own guesses (prompt literally asked for the correct option), not real data — reset to unverified, fixed via DECIDE-27
+- [BUG-13](bugs.md#bug-13) — chunk-boundary duplication extracts the same PYQ twice under different question_ids — fixed via a persist-time dedup check on (exam_id, paper_id, year, question_number); chunker's underlying boundary overlap itself still open
+- [BUG-14](bugs.md#bug-14) — truncated Haiku JSON response (dense-MCQ chunk exceeding max_tokens) crashed the whole ingestion run — max_tokens raised, parse failure now a flagged per-chunk failure
 
 ## Research
 - [RESEARCH-01](research.md#research-01) — LanceDB reliability & concurrency
@@ -63,11 +69,12 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [RISK-01](risks.md#risk-01) — Scribe's grounding freshness lags until sync is re-run (inherent to DECIDE-03)
 - [RISK-02](risks.md#risk-02) — Old Chroma metadata too sparse to carry over; full re-ingest required at cutover
 - [RISK-03](risks.md#risk-03) — LanceDB's concurrency model won't hold at multi-user "publish it later" scale
-- [RISK-04](risks.md#risk-04) — `upsc_epfo_apfc_eo_ao` topic weights seeded from a single verified year (2025); recompute from real data once a second year is ingested
+- [RISK-04](risks.md#risk-04) — RESOLVED S8 (DECIDE-29): `exam_topics.weight` recomputed from real 546-question frequency across 5 years, no longer single-year-seeded
+- [RISK-05](risks.md#risk-05) — PARTIALLY RESOLVED S8 (DECIDE-29): `epfo_quant_stats_mental_ability` topic now exists; the specific 6 flagged 2023 GAT questions (Q115-120) still need re-processing against it, not yet done
 
 ## Assumptions
 - [ASSUME-01](decisions.md#assume-01) — Law Optional / Econ Optional source PDFs will be supplied by Rahul later; schema is ready now, ingestion deferred
 
 ---
 
-**Next available IDs:** DECIDE-27 · BUG-12 · RESEARCH-11 · RISK-05 · ASSUME-02
+**Next available IDs:** DECIDE-30 · BUG-15 · RESEARCH-11 · RISK-06 · ASSUME-02

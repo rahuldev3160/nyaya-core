@@ -72,12 +72,33 @@ class PYQBase(BaseModel):
     verified_by: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     tags: dict[str, str] = Field(default_factory=dict)
+    # The number printed on the question in its source booklet (e.g. "47.") — literal
+    # extraction, not inferred. Required to later match a real answer key (which is always
+    # indexed by this number) back to the right row; None only for content with no visible
+    # numbering (rare, e.g. a question quoted in prose).
+    question_number: Optional[int] = None
+    # The exact question-paper file this was extracted from (DECIDE-28) — e.g.
+    # "data/raw_ingest_staging/upsc_epfo_apfc_eo_ao/eoao_gat_2023_notebooklm.pdf". Lets any
+    # question be traced back to its literal source and re-checked/corrected if that source
+    # is later found to be flawed, without having to reverse-engineer it from question_id.
+    source_file: Optional[str] = None
 
 
 class MCQQuestion(PYQBase):
     question_format: Literal["mcq"] = "mcq"
     options: list[str]
-    correct_option: str
+    # Letter (A/B/C/D, matching the position in `options`) of the verified correct answer —
+    # never filled by Haiku (DECIDE-26/27: no question is solved by the LLM). None until a
+    # real answer key is merged in via scripts/merge_answer_key.py.
+    correct_option: Optional[str] = None
+    # unverified: no real key applied yet. verified: correct_option came from a real official
+    # key. void: UPSC itself dropped this item from scoring (a real, printed "item dropped"
+    # outcome) — distinct from "we don't know yet".
+    status: Literal["unverified", "verified", "void"] = "unverified"
+    # The exact answer-key file (+ series, e.g. "UPSC-EPFO-EO-AO-Answer-Key-2023.pdf#series=A")
+    # that supplied `correct_option` (DECIDE-28) — set only by scripts/merge_answer_key.py,
+    # never by extraction. None while status='unverified'.
+    answer_key_file: Optional[str] = None
     # Most real UPSC-style MCQs are statement-based ("how many of the following statements
     # are correct" — options like "Only one"/"Only two"/"All three"), not four independently
     # meaningful factual options. Capturing statements as structured data at extraction time

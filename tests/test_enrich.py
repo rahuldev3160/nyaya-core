@@ -1,6 +1,7 @@
 """Sanity tests for src/ingestion/enrich.py — no real API calls (uses a fake client that
 returns canned responses), proves the parsing/validation logic, not the prompt itself."""
 
+import sqlite3
 import sys
 from datetime import date
 from pathlib import Path
@@ -10,10 +11,35 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
 
-from src.ingestion.enrich import ReviewNeededError, build_chunk_metadata, build_pyqs, enrich_chunk, parse_enrichment
+from src.ingestion.enrich import ReviewNeededError, build_chunk_metadata, build_pyqs, enrich_chunk, parse_enrichment, persist_pyq
 from src.schema.models import MCQQuestion, TextChunk
 
 TOPICS = {"constitutional_framework", "parliament"}
+
+PYQ_BANK_SCHEMA = """
+CREATE TABLE pyq_bank (
+    question_id TEXT PRIMARY KEY, exam_id TEXT NOT NULL, paper_id TEXT, topic_id TEXT,
+    question_format TEXT NOT NULL, year INTEGER, question_number INTEGER,
+    question_text TEXT NOT NULL, options TEXT, correct_option TEXT,
+    status TEXT NOT NULL DEFAULT 'unverified', statements TEXT, marks INTEGER,
+    word_limit INTEGER, source_type TEXT NOT NULL, source_file TEXT, verified_by TEXT,
+    answer_key_file TEXT, reviewed_at TEXT
+)
+"""
+
+
+def _pyq_bank_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.execute(PYQ_BANK_SCHEMA)
+    return conn
+
+
+def _mcq(question_id: str, question_number: int, paper_id: str = "gat") -> MCQQuestion:
+    return MCQQuestion(
+        question_id=question_id, exam_id="upsc_epfo_apfc_eo_ao", paper_id=paper_id,
+        topic_id="constitutional_framework", year=2023, question_number=question_number,
+        question_text="x?", options=["a", "b"], source_type="official_pyq",
+    )
 
 
 def _fake_chunk() -> TextChunk:
@@ -63,7 +89,8 @@ def test_mcq_pyq_extraction():
     assert len(pyqs) == 1
     assert isinstance(pyqs[0], MCQQuestion)
     assert pyqs[0].year == 2023
-    assert pyqs[0].correct_option == "Life"
+    assert pyqs[0].correct_option is None  # never Haiku-guessed (DECIDE-26/27)
+    assert pyqs[0].status == "unverified"
     assert pyqs[0].question_id == "upsc_prelims_gs_constitution.pdf_5_2_pyq_0"
     assert pyqs[0].topic_id == "constitutional_framework"
 
@@ -86,31 +113,31 @@ def test_multiple_pyqs_in_one_chunk_get_distinct_ids():
     assert len(pyqs) == 2
     assert {p.question_id for p in pyqs} == {"chunk_1_pyq_0", "chunk_1_pyq_1"}
     assert pyqs[0].question_text == "Q1?"
-    assert pyqs[1].correct_option == "d"
+    assert pyqs[1].correct_option is None  # never Haiku-guessed (DECIDE-26/27)
 
 
 def test_one_bad_question_does_not_discard_its_good_siblings():
-    """The core fix from the real 2025 ingestion run: a chunk with several valid questions
-    and ONE unanswerable one (no official answer key exists for most dense MCQ content)
-    must keep the good ones, not discard the whole chunk. Confirmed against real data: one
-    real chunk had a failure at question index 6, meaning 6 good questions were being
-    silently destroyed before this fix."""
+    """A chunk with several valid questions and ONE genuinely bad one (no year statable or
+    inferable) must keep the good ones, not discard the whole chunk. Confirmed against real
+    data: one real chunk had a failure at question index 6, meaning 6 good questions were
+    being silently destroyed before this fix. NOTE: a missing correct_option is no longer a
+    failure at all (DECIDE-26/27) — see test_mcq_pyq_missing_correct_option_kept_unverified."""
     data = {
         "content_type": "mcq_pyq", "topic_id": "constitutional_framework", "context_prefix": "x",
         "pyqs": [
             {"question_format": "mcq", "question_text": "Good Q1?", "year": 2023,
-             "options": ["a", "b"], "correct_option": "a"},
-            {"question_format": "mcq", "question_text": "Unanswerable Q2?", "year": 2023,
-             "options": ["a", "b"], "correct_option": None},
+             "options": ["a", "b"]},
+            {"question_format": "mcq", "question_text": "No year Q2?", "year": None,
+             "options": ["a", "b"]},
             {"question_format": "mcq", "question_text": "Good Q3?", "year": 2023,
-             "options": ["c", "d"], "correct_option": "d"},
+             "options": ["c", "d"]},
         ],
     }
     pyqs, failures = build_pyqs("chunk_1", "upsc_prelims_gs", "official_pyq", data, TOPICS)
     assert len(pyqs) == 2
     assert {p.question_text for p in pyqs} == {"Good Q1?", "Good Q3?"}
     assert len(failures) == 1
-    assert "PYQ #1" in failures[0] and "no correct_option" in failures[0]
+    assert "PYQ #1" in failures[0] and "no year" in failures[0]
 
 
 def test_per_question_topic_id_overrides_chunk_level():
@@ -145,16 +172,36 @@ def test_invalid_per_question_topic_id_flagged_not_crashed():
     assert "not a registered topic" in failures[0]
 
 
-def test_mcq_pyq_missing_correct_option_flagged_not_raised():
+def test_mcq_pyq_with_null_option_entry_flagged_not_crashed():
+    """Real bug found ingesting the 2023 EPFO GAT paper: Haiku returned an `options` array
+    with a null entry (a genuinely illegible/malformed cell) instead of 4 strings, which
+    crashed MCQQuestion's Pydantic validation and took down the whole ingestion run. A
+    per-item extraction defect must be a flagged failure, not an uncaught exception."""
     data = {
         "content_type": "mcq_pyq", "topic_id": "constitutional_framework", "context_prefix": "x",
-        "pyqs": [{"question_format": "mcq", "question_text": "Article 21 protects?",
-                  "year": 2023, "options": ["Life", "Property"], "correct_option": None}],
+        "pyqs": [{"question_format": "mcq", "question_text": "Q?", "year": 2023,
+                  "options": ["a", "b", None, "d"]}],
     }
     pyqs, failures = build_pyqs("chunk_1", "upsc_prelims_gs", "official_pyq", data, TOPICS)
     assert pyqs == []
     assert len(failures) == 1
-    assert "no correct_option" in failures[0]
+    assert "malformed" in failures[0]
+
+
+def test_mcq_pyq_missing_correct_option_kept_unverified():
+    """DECIDE-26/27: a missing answer is no longer a reason to drop an extraction — most
+    real official papers have no printed key at all, and losing the question along with the
+    unknown answer was the exact bug (36/120 real yield) that led to this policy change."""
+    data = {
+        "content_type": "mcq_pyq", "topic_id": "constitutional_framework", "context_prefix": "x",
+        "pyqs": [{"question_format": "mcq", "question_text": "Article 21 protects?",
+                  "year": 2023, "options": ["Life", "Property"]}],
+    }
+    pyqs, failures = build_pyqs("chunk_1", "upsc_prelims_gs", "official_pyq", data, TOPICS)
+    assert failures == []
+    assert len(pyqs) == 1
+    assert pyqs[0].correct_option is None
+    assert pyqs[0].status == "unverified"
 
 
 def test_pyq_missing_year_backfilled_from_published_date():
@@ -200,7 +247,6 @@ def test_statement_based_mcq_captures_statements():
             "question_text": "Consider the following statements. How many of the above are correct?",
             "year": 2022,
             "options": ["Only one", "Only two", "All three", "None"],
-            "correct_option": "Only two",
             "statements": [
                 "The Speaker of the Lok Sabha is elected by its members.",
                 "The Rajya Sabha cannot be dissolved.",
@@ -213,7 +259,7 @@ def test_statement_based_mcq_captures_statements():
     assert isinstance(pyqs[0], MCQQuestion)
     assert pyqs[0].statements is not None
     assert len(pyqs[0].statements) == 3
-    assert pyqs[0].correct_option == "Only two"
+    assert pyqs[0].correct_option is None  # never Haiku-guessed (DECIDE-26/27)
 
 
 def test_standalone_mcq_has_no_statements():
@@ -259,6 +305,71 @@ def test_enrich_chunk_keeps_valid_pyqs_when_chunk_level_topic_fails():
     assert pyq_failures == []
     assert len(pyqs) == 1
     assert pyqs[0].topic_id == "parliament"
+
+
+def _fake_client_raw_text(text: str):
+    content_block = SimpleNamespace(text=text)
+    usage = SimpleNamespace(input_tokens=10, output_tokens=20,
+                             cache_creation_input_tokens=0, cache_read_input_tokens=0)
+    response = SimpleNamespace(content=[content_block], usage=usage)
+    return SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: response))
+
+
+def test_enrich_chunk_flags_truncated_json_instead_of_crashing():
+    """Real failure on the 2017 EPFO paper: a chunk packed with dense MCQs produced a
+    response cut off mid-string by max_tokens, and json.loads crashed the entire ingestion
+    run instead of flagging just that one chunk."""
+    truncated = '{"content_type": "mcq_pyq", "topic_id": "parliament", "pyqs": [{"question_text": "unterminat'
+    metadata, pyqs, pyq_failures, metadata_failure, usage = enrich_chunk(
+        _fake_chunk(), "upsc_prelims_gs", "official_pyq",
+        system_prompt="irrelevant for this fake client",
+        client=_fake_client_raw_text(truncated),
+        topics=[("parliament", "Parliament")],
+    )
+    assert metadata is None
+    assert pyqs == []
+    assert pyq_failures == []
+    assert metadata_failure is not None and "not valid JSON" in metadata_failure
+    assert usage["input_tokens"] == 10  # still billed, still counted
+
+
+def test_persist_pyq_writes_new_row():
+    conn = _pyq_bank_conn()
+    inserted = persist_pyq(_mcq("chunk_1_pyq_0", question_number=5), conn)
+    assert inserted is True
+    row = conn.execute("SELECT question_number, source_file FROM pyq_bank").fetchone()
+    assert row[0] == 5
+
+
+def test_persist_pyq_dedupes_same_question_number_different_chunk():
+    """BUG-13: the same real question can be extracted from two adjacent chunks with two
+    different chunk-derived question_ids. persist_pyq must recognize the second as the same
+    real question (same exam/paper/year/question_number) and skip it, not double-insert."""
+    conn = _pyq_bank_conn()
+    assert persist_pyq(_mcq("chunk_1_pyq_0", question_number=5), conn) is True
+    assert persist_pyq(_mcq("chunk_2_pyq_0", question_number=5), conn) is False
+    assert conn.execute("SELECT COUNT(*) FROM pyq_bank").fetchone()[0] == 1
+
+
+def test_persist_pyq_does_not_dedupe_across_different_papers():
+    """Same question_number under a DIFFERENT paper_id is a genuinely different question
+    (e.g. Q5 of the GAT paper vs Q5 of the GS paper) — must not be treated as a duplicate."""
+    conn = _pyq_bank_conn()
+    assert persist_pyq(_mcq("chunk_1_pyq_0", question_number=5, paper_id="gat"), conn) is True
+    assert persist_pyq(_mcq("chunk_2_pyq_0", question_number=5, paper_id="gs"), conn) is True
+    assert conn.execute("SELECT COUNT(*) FROM pyq_bank").fetchone()[0] == 2
+
+
+def test_build_pyqs_threads_source_file_through():
+    data = {
+        "content_type": "mcq_pyq", "topic_id": "constitutional_framework", "context_prefix": "x",
+        "pyqs": [{"question_format": "mcq", "question_text": "Q?", "year": 2023,
+                  "options": ["a", "b"], "question_number": 5}],
+    }
+    pyqs, failures = build_pyqs("chunk_1", "upsc_prelims_gs", "official_pyq", data, TOPICS,
+                                 source_file="data/raw_ingest_staging/foo/bar.pdf")
+    assert failures == []
+    assert pyqs[0].source_file == "data/raw_ingest_staging/foo/bar.pdf"
 
 
 if __name__ == "__main__":

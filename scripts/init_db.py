@@ -106,16 +106,25 @@ CREATE TABLE IF NOT EXISTS pyq_bank (
     topic_id         TEXT REFERENCES topics(topic_id),
     question_format  TEXT NOT NULL CHECK (question_format IN ('mcq', 'descriptive')),
     year             INTEGER,
+    question_number  INTEGER,  -- number printed on the question in its source booklet;
+                                -- needed to match a real answer key later (DECIDE-27)
     question_text    TEXT NOT NULL,
     options          TEXT,   -- MCQ-only, JSON-encoded list; NULL for descriptive
-    correct_option   TEXT,   -- MCQ-only; NULL for descriptive
+    correct_option   TEXT,   -- MCQ-only; letter (A/B/C/D) from a real merged answer key,
+                              -- NEVER Haiku-guessed (DECIDE-26/27); NULL for descriptive
+    status           TEXT NOT NULL DEFAULT 'unverified'
+                     CHECK (status IN ('unverified', 'verified', 'void')),  -- MCQ-only
     statements       TEXT,   -- MCQ-only, JSON-encoded list; NULL for standalone-option MCQs
                              -- and all descriptive questions (DECIDE-23/BUG-04 — see
                              -- src/schema/models.py's MCQQuestion.statements)
     marks            INTEGER,  -- descriptive-only; NULL for MCQ
     word_limit       INTEGER,  -- descriptive-only; NULL for MCQ
     source_type      TEXT NOT NULL,
+    source_file      TEXT,   -- exact question-paper file this row was extracted from
+                             -- (DECIDE-28) — lets any row be traced back and re-checked
     verified_by      TEXT,
+    answer_key_file  TEXT,   -- MCQ-only; exact answer-key file (+series) that set
+                             -- correct_option (DECIDE-28); NULL while status='unverified'
     reviewed_at      TEXT,
     FOREIGN KEY (exam_id, paper_id) REFERENCES papers(exam_id, paper_id)
 );

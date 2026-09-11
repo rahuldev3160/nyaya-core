@@ -40,6 +40,13 @@ Rules:
   Getting this distinction right matters — it's what lets each statement be explained on
   its own later, instead of forcing an explanation shape built for independent options onto
   a question that doesn't have any.
+- Extract `question_number` as the literal number printed on the question in the source
+  (e.g. "47." at the start of the item) — this is transcription, not judgment. Null only if
+  the question genuinely has no visible number (e.g. quoted inline in prose).
+- Never determine or guess which option is correct. Do not include a "correct answer" field
+  of any kind — correctness is applied later from a real, human-verified answer key, never
+  by you. If you find yourself deciding which option is right, stop — that value is not
+  wanted here.
 - Output ONLY a single JSON object, no markdown code fences, no explanation.
 
 Required JSON shape:
@@ -51,10 +58,10 @@ Required JSON shape:
     {
       "topic_id": "<this question's own topic id from the valid list above, or null>",
       "question_format": "mcq" | "descriptive",
+      "question_number": <int, or null if not visibly numbered>,
       "question_text": "<the question stem, no options>",
       "year": <int, or null if not stated>,
       "options": ["..."],           // mcq only, omit/null for descriptive
-      "correct_option": "<text of the correct option, or null if not determinable>",  // mcq only
       "statements": ["..."] | null,  // mcq only — see statement-based rule above; null for standalone-option MCQs and all descriptive questions
       "marks": <int, or null>,      // descriptive only
       "word_limit": <int, or null>  // descriptive only

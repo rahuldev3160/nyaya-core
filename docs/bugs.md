@@ -260,6 +260,59 @@ the moment the decision closes — never trust the citing doc's framing over the
 own status field. Applies beyond this repo to any project with a similar plan-doc /
 decision-log split.
 
+### BUG-12 — 36 "extracted" 2025 answers were Haiku guesses, not real data {#bug-12}
+**Date:** 2026-09-12 | **Session:** S8 | **Fixed:** Yes
+
+**Root cause:** `enrich_chunk_system.txt` (since S4/DECIDE-13) asked Haiku for
+`"correct_option": "<text of the correct option, or null if not determinable>"` — an
+explicit instruction to answer the question itself when confident. The 2025 paper's 84
+flagged/dropped questions (DECIDE-26) were the cases Haiku *wasn't* confident on; the 36
+that made it into `pyq_bank` looking like successful extractions were actually just the
+cases Haiku *was* confident on and guessed right or wrong with zero way to tell which.
+**Fix:** Prompt no longer asks for correctness at all (DECIDE-27). `scripts/
+migrate_005_answer_key_support.py` reset all 36 rows to `correct_option=NULL,
+status='unverified'`.
+**Lesson:** "The model produced a value without raising an error" is not evidence the value
+is correct — DECIDE-10's "no silent fallback" principle was applied to *missing* data here,
+but the mirror case (present-but-untrustworthy data) slipped through because nothing marked
+model-derived correctness differently from source-derived correctness. Any field an LLM can
+answer directly from its own knowledge (not just extract from the given text) needs either a
+verification step or an explicit provenance/status flag before another system trusts it.
+
+### BUG-14 — truncated Haiku JSON response crashed the whole ingestion run {#bug-14}
+**Date:** 2026-09-12 | **Session:** S8 | **Fixed:** Yes
+
+**Root cause:** A chunk packed with many dense MCQs (real 2017 EPFO paper) produced a
+response `json.loads` couldn't parse ("Unterminated string...") — the response was cut off
+by `max_tokens=2048`. `parse_enrichment`'s `json.loads` call was unguarded, so the exception
+propagated all the way up and killed the entire batch, discarding every chunk not yet
+processed along with it.
+**Fix:** Raised `max_tokens` to 4096 (fewer truncations) and wrapped the parse in
+`enrich_chunk` so a `JSONDecodeError` flags just that one chunk (same shape as any other
+chunk-level failure) and lets the batch continue.
+**Lesson:** Any external-response parse step inside a per-item loop needs the same
+per-item failure isolation as validation does (BUG-09/10's principle) — a malformed
+*response*, not just a *validated-but-wrong* one, is still just one item's problem.
+
+### BUG-13 — chunk-boundary duplication produces the same PYQ twice {#bug-13}
+**Date:** 2026-09-12 | **Session:** S8 | **Fixed:** Yes
+
+**Root cause:** The 2023 EPFO GAT paper produced 5 duplicate `question_number`s (each
+appearing in two adjacent chunks with near-identical `question_text`) — `chunk_document()`'s
+Stage-2 packing evidently lets some content span into both a chunk boundary's trailing edge
+and the next chunk's leading edge, and Haiku extracts the same question from both.
+**Fix:** `persist_pyq` now checks for an existing row with the same
+`(exam_id, paper_id, year, question_number)` before inserting and skips the duplicate
+(`ingest.py` reports it as "duplicate PYQs skipped"), since `question_id` (chunk-derived)
+can't catch this via the existing `ON CONFLICT`. Confirmed working on the 2016 paper (27 of
+117 raw extractions were duplicates, all correctly skipped). The chunker's underlying
+boundary overlap itself is not fixed — this is a persist-time safety net, not a root fix.
+**Lesson:** `persist_pyq`'s upsert key is `question_id` (chunk-derived), not
+`question_number` — the two chunks produce different `question_id`s for the same real
+question, so the DB's own `ON CONFLICT` can't catch this class of duplicate. A future fix
+should either eliminate the chunk-boundary overlap at the source, or de-duplicate by
+`(exam_id, paper_id, year, question_number)` at ingest time before persisting.
+
 **Format for future entries:**
 ```
 ### BUG-XX — Short description {#bug-xx}

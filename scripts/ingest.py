@@ -115,14 +115,22 @@ def ingest_file(
     client: anthropic.Anthropic,
     published_date: date | None,
     paper_id: str | None = None,
+    force_parser: str | None = None,
 ) -> dict:
     """Runs the full pipeline for one file. Returns a usage/outcome summary for logging.
     `paper_id` (DECIDE-21), when given, narrows topic classification to that specific paper
     within `exam_id` (plus exam-wide topics) — pass it whenever a folder's content is known
     to belong to one paper (e.g. ingesting only Ethics-paper PDFs), so a chunk can't get
     classified into a different paper's topic just because it shares the same exam_id.
+
+    `force_parser` overrides `detect_parser`'s heuristic — needed for e.g. a coaching-site
+    PDF whose first pages are a text-heavy cover/intro but whose actual question pages are
+    image-only: `get_page_text_quality` only samples the first 3 pages, so it can score such
+    a file as "digital" and silently extract almost nothing from the rest (confirmed on the
+    real APFC 2012 question paper, 182 avg chars/page from the sample, 0 from the real
+    content pages). Always eyeball a few pages past the cover before trusting auto-detection.
     """
-    parser_name = detect_parser(path)
+    parser_name = force_parser or detect_parser(path)
     if parser_name == "unknown":
         raise ValueError(f"no parser for '{path.suffix}' ({path.name})")
 
@@ -135,10 +143,15 @@ def ingest_file(
     document_context = "\n\n".join(text for _, text in pages)
     system_prompt = build_system_prompt(doc_id, document_context, content_types, topics)
 
+    try:
+        source_file = str(path.relative_to(Path(__file__).parent.parent))
+    except ValueError:
+        source_file = str(path)
+
     summary = {
-        "file": str(path), "chunks_written": 0, "pyqs_written": 0, "chunks_flagged": 0,
-        "pyqs_flagged": 0, "input_tokens": 0, "output_tokens": 0, "cache_creation_tokens": 0,
-        "cache_read_tokens": 0,
+        "file": str(path), "chunks_written": 0, "pyqs_written": 0, "pyqs_deduped": 0,
+        "chunks_flagged": 0, "pyqs_flagged": 0, "input_tokens": 0, "output_tokens": 0,
+        "cache_creation_tokens": 0, "cache_read_tokens": 0,
     }
 
     def _log_flagged(reason: str) -> None:
@@ -149,7 +162,7 @@ def ingest_file(
     for chunk in chunks:
         metadata, pyqs, pyq_failures, metadata_failure, usage = enrich_chunk(
             chunk, exam_id, source_type, system_prompt, client, topics,
-            published_date=published_date, paper_id=paper_id,
+            published_date=published_date, paper_id=paper_id, source_file=source_file,
         )
 
         # The chunk's own overall classification (its embedding/retrieval placement) and its
@@ -163,8 +176,10 @@ def ingest_file(
             _log_flagged(metadata_failure)
 
         for pyq in pyqs:
-            persist_pyq(pyq, conn)
-            summary["pyqs_written"] += 1
+            if persist_pyq(pyq, conn):
+                summary["pyqs_written"] += 1
+            else:
+                summary["pyqs_deduped"] += 1
         for reason in pyq_failures:
             summary["pyqs_flagged"] += 1
             _log_flagged(reason)
@@ -189,6 +204,15 @@ def main() -> None:
                          help="Narrows topic classification to one paper within --exam-id "
                               "(DECIDE-21) — set this whenever the folder's content belongs "
                               "to a single known paper, e.g. --paper-id essay.")
+    parser.add_argument("--force", action="store_true",
+                         help="Reprocess files even if their hash is already recorded in "
+                              "ingestion_log.json — needed to re-run a file after a schema/"
+                              "prompt change, not just after the file itself changes.")
+    parser.add_argument("--parser", choices=list(EXTRACTORS), default=None,
+                         help="Force this parser instead of auto-detecting — use when "
+                              "detect_parser's first-3-pages heuristic is fooled by a "
+                              "text-heavy cover/intro on an otherwise image-only PDF (check "
+                              "a few real content pages before trusting auto-detection).")
     args = parser.parse_args()
 
     conn = sqlite3.connect(DB_PATH)
@@ -198,32 +222,34 @@ def main() -> None:
 
     files = [p for p in args.folder.rglob("*") if p.is_file() and detect_parser(p) != "unknown"]
     totals = {"files_processed": 0, "files_skipped": 0, "chunks_written": 0, "pyqs_written": 0,
-              "chunks_flagged": 0, "pyqs_flagged": 0, "input_tokens": 0, "output_tokens": 0,
-              "cache_creation_tokens": 0, "cache_read_tokens": 0}
+              "pyqs_deduped": 0, "chunks_flagged": 0, "pyqs_flagged": 0, "input_tokens": 0,
+              "output_tokens": 0, "cache_creation_tokens": 0, "cache_read_tokens": 0}
 
     for path in files:
         h = file_hash(path)
-        if log.get(str(path)) == h:
+        if log.get(str(path)) == h and not args.force:
             totals["files_skipped"] += 1
             continue
 
         published_date = infer_published_date(path, args.published_date)
         summary = ingest_file(path, args.exam_id, args.source_type, conn, client, published_date,
-                               paper_id=args.paper_id)
+                               paper_id=args.paper_id, force_parser=args.parser)
         print(f"{path.name}: {summary['chunks_written']} chunks, {summary['pyqs_written']} PYQs, "
+              f"{summary['pyqs_deduped']} duplicate PYQs skipped (BUG-13), "
               f"{summary['chunks_flagged']} chunks flagged, {summary['pyqs_flagged']} questions flagged")
 
         log[str(path)] = h
         save_log(log)  # after every file, not just at the end — a crash mid-batch shouldn't lose progress
         totals["files_processed"] += 1
-        for key in ("chunks_written", "pyqs_written", "chunks_flagged", "pyqs_flagged", "input_tokens",
-                    "output_tokens", "cache_creation_tokens", "cache_read_tokens"):
+        for key in ("chunks_written", "pyqs_written", "pyqs_deduped", "chunks_flagged", "pyqs_flagged",
+                    "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens"):
             totals[key] += summary[key]
 
     conn.close()
     print(
         f"\nDone: {totals['files_processed']} files processed, {totals['files_skipped']} skipped "
         f"(unchanged). {totals['chunks_written']} chunks written, {totals['pyqs_written']} PYQs, "
+        f"{totals['pyqs_deduped']} duplicate PYQs skipped (BUG-13), "
         f"{totals['chunks_flagged']} whole chunks flagged, {totals['pyqs_flagged']} individual "
         f"questions flagged (see {FLAGGED_PATH.name}).\n"
         f"Haiku usage: {totals['input_tokens']} input, {totals['output_tokens']} output, "
