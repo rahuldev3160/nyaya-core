@@ -69,3 +69,26 @@ sub-topics) to `exam_topics` for `upsc_epfo_apfc_eo_ao` before re-attempting the
 questions — a `scripts/seed_topics.py` addition, not a schema change. Check other ingested
 years for the same subject once the topic exists, in case any of them lost content to the
 same gap silently before this was noticed.
+
+### RISK-07 — PFRDA Paper-2 topic weights are honest placeholders, not real {#risk-07}
+**Date:** 2026-09-15/16 | **Session:** external (Mission 2027) | **Status:** Open
+
+**Risk:** DECIDE-30 seeded all 23 General/Research Paper-2 topics at a flat weight of 1.0 —
+no real per-subject frequency exists (the 3 real PFRDA paper-books on disk haven't been
+ingested). Any tooling that treats these weights as real priority signal will be wrong.
+**Mitigation:** Ingest the 3 real paper-books (`~/Desktop/PFRDA/*.pdf`, 2021/2022/2025) and
+recompute weights from observed frequency, same pattern as DECIDE-29's EPFO fix for RISK-04.
+**Escalation trigger:** Before any PFRDA-specific feature (e.g. a Recall practice mode)
+ships using these weights as if they were real.
+
+### RISK-08 — PFRDA Budget/Economic-Survey cross-link deferred, not decided {#risk-08}
+**Date:** 2026-09-15/16 | **Session:** external (Mission 2027) | **Status:** Open
+
+**Risk:** DECIDE-30 rejected cross-linking `pfrda_budget_economic_survey` to the canonical
+Indian-Economy/current-affairs topic in a rushed pass, but flagged it as a plausible real
+match worth revisiting — leaving it un-cross-linked means a future cross-exam overlap query
+will undercount how much this topic actually serves Rahul's broader prep.
+**Mitigation:** Revisit with a real depth/scope comparison (same method DECIDE-29 used)
+before the next PFRDA-related session closes.
+**Escalation trigger:** None urgent — low cost either way until cross-exam topic linking
+(the real unbuilt task named in DECIDE-19/RESEARCH-06) is actually built.

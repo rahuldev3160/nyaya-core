@@ -1,6 +1,28 @@
 # Project HANDOFF
 
 ## Exact next step
+**DECIDE-30 (2026-09-15/16, external session): PFRDA Grade A registered as the platform's
+10th exam** — `pfrda_gradea`, 6 papers (common Phase-I/II Paper 1 + disjoint General/Research
+Paper 2s), fresh 28-topic taxonomy from the real Advt. 03/2026 notification (Phase-I Paper 1's
+English/Quant/Reasoning/GA weights are real, from the stated 20/20/30/20-of-90 split; all 23
+General/Research Paper-2 topics are flat placeholder weight 1.0 — RISK-07, no real
+per-subject frequency exists yet). **Zero content ingested** — the 3 real PFRDA paper-books
+already on disk (`~/Desktop/PFRDA/*.pdf`, 2021/2022/2025) are the natural next real ingestion
+target, same treatment EPFO got (DECIDE-24→29): run `scripts/ingest.py`, then recompute
+Paper-2 weights from observed frequency to resolve RISK-07. RISK-08 (a plausible
+Budget/Economic-Survey cross-link to the canonical Indian-Economy topic) was deliberately
+deferred, not decided — revisit before the next PFRDA session closes. 41/41 tests still
+passing. Full detail: `docs/decisions.md#decide-30`.
+
+**Also worth doing when picking this up again:** the same session that produced DECIDE-30
+found nyaya-core's `exam_topics.weight` column isn't cross-exam-comparable (raw sums range
+10.47–451 across exams) and that only one cluster (CSE+4 State PCS) actually shares canonical
+topic_ids — IES/RBI/EPFO/PFRDA each have separate, unlinked vocabularies even where they
+conceptually overlap (e.g. three separate "IS-LM"-type rows). A normalized-weight view and
+real canonical-topic linking across these four are the real unbuilt tasks behind treating
+"which topic serves the most exams" as a live query instead of manual reasoning — not done
+this session, deliberately sequenced after real PFRDA/EPFO content exists to link against.
+
 **DECIDE-27/28/29 (S8) landed and paid off immediately: 6 real EPFO paper-instances (5 GAT
 years + 2023 GS) now verified against real official answer keys, 608 total verified
 questions, 0 ever guessed by an LLM.** Schema has `question_number`, `status`

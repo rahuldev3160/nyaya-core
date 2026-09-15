@@ -642,3 +642,30 @@ single-year-seeded).
 fix, got 114/120 questions cleanly tagged (only 3 chunks flagged) — a sharp improvement over
 the old taxonomy's flagging rate on comparable content. 608 total verified questions across
 6 real paper-instances (5 GAT years + this GS year) as of this session.
+
+### DECIDE-30 — Register PFRDA Officer Grade 'A' as a new exam, fresh taxonomy {#decide-30}
+**Date:** 2026-09-15/16 | **Session:** external (Mission 2027 strategy session) | **Status:** Active
+
+**Decision:** Registered `pfrda_gradea` (10th exam) under a new `pfrda` institution — Rahul
+is applying to both General and Research streams, real notification found (Advt. 03/2026,
+applications close 24 Sep 2026, Phase-I 15 Oct, Phase-II 20 Nov). Modeled as one exam with
+6 papers (`phase1_p1`/`phase2_p1` common to all streams; `phase1_p2_general`/
+`phase2_p2_general` and `phase1_p2_research`/`phase2_p2_research` fully disjoint syllabi),
+matching DECIDE-21/25's "streams are papers, not separate exams" precedent.
+**Rationale:** Per DECIDE-29's precedent, curated a fresh 28-topic taxonomy rather than
+reusing canonical UPSC/RBI/IES topics — real PYQ sampling (2025 PFRDA paper-book) confirmed
+PFRDA General's Economics section is genuinely UG-101 level, well below the postgrad depth
+CSE/RBI/IES's canonical Macro Theory topics assume; forcing a link would misrepresent depth.
+Phase-I Paper 1's 4-section weight (English/Quant/Reasoning/GA, 22.22/22.22/33.33/22.22) is
+real, from the notification's stated 20/20/30/20-of-90 question split. **General/Research
+Paper-2 topics all carry a flat placeholder weight of 1.0** — no real per-subject frequency
+exists yet (the 3 real PFRDA paper-books on disk haven't been ingested), same honest-
+placeholder pattern already used for State PCS (RISK-04's original problem) — do not treat
+as real weights.
+**Rejected:** Cross-linking PFRDA's "Union Budget & Economic Survey" line to the canonical
+Indian-Economy/current-affairs topic — plausible real match, but deliberately deferred
+rather than decided in a rushed pass; flagged as RISK-07 below.
+**Assumptions baked in:** none — every topic/paper/weight traces to the real notification,
+read via vision this session (`scripts/migrate_008_register_pfrda.py`'s docstring has full
+citation). Actual PDF ingestion of the 3 real PFRDA paper-books is NOT done — schema/taxonomy
+only. 41/41 tests still passing post-migration.
