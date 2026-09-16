@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from daily_priority import (
     COVERAGE_DEPTH,
     compute_at_risk,
+    fetch_coverage_depth,
     fetch_items,
     get_scopes,
     paper_display_name,
@@ -25,6 +26,11 @@ CREATE TABLE exam_topics (
     exam_id TEXT NOT NULL, paper_id TEXT NOT NULL DEFAULT '_all', topic_id TEXT NOT NULL,
     weight REAL NOT NULL DEFAULT 1.0, is_core INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (exam_id, paper_id, topic_id)
+);
+CREATE TABLE topic_coverage (
+    exam_id TEXT NOT NULL, topic_id TEXT NOT NULL, attempts_count INTEGER NOT NULL,
+    accuracy REAL NOT NULL, coverage_depth REAL NOT NULL, last_computed_at TEXT NOT NULL,
+    PRIMARY KEY (exam_id, topic_id)
 );
 """
 
@@ -143,3 +149,64 @@ def test_fetch_items_empty_scope_returns_empty_list_not_error():
     _seed_fake_exam(conn)
     items = fetch_items(conn, "fake_exam", "nonexistent_paper")
     assert items == []
+
+
+# --- DECIDE-34: real coverage_depth wiring (topic_coverage table) ---
+
+
+def test_fetch_coverage_depth_falls_back_to_zero_when_no_row_exists():
+    """Untested topic (no topic_coverage row) must fall back to COVERAGE_DEPTH (0.0),
+    never a fabricated default — the layered-coverage anti-false-positive rule."""
+    conn = _conn()
+    _seed_fake_exam(conn)
+    assert fetch_coverage_depth(conn, "fake_exam", "topic_high") == COVERAGE_DEPTH
+    assert fetch_coverage_depth(conn, "fake_exam", "topic_high") == 0.0
+
+
+def test_fetch_coverage_depth_returns_real_row_when_present():
+    conn = _conn()
+    _seed_fake_exam(conn)
+    conn.execute(
+        "INSERT INTO topic_coverage (exam_id, topic_id, attempts_count, accuracy, "
+        "coverage_depth, last_computed_at) VALUES (?, ?, ?, ?, ?, ?)",
+        ("fake_exam", "topic_high", 4, 0.75, 1.0, "2026-09-16T00:00:00+00:00"),
+    )
+    conn.commit()
+    assert fetch_coverage_depth(conn, "fake_exam", "topic_high") == 1.0
+    # A different, untested topic in the same exam is unaffected.
+    assert fetch_coverage_depth(conn, "fake_exam", "topic_mid") == 0.0
+
+
+def test_fetch_items_uses_real_coverage_depth_and_lowers_priority_score():
+    """A topic with real full coverage (coverage_depth=1.0) must drop to priority_score=0
+    (weight * (1 - 1.0)), while an untested sibling keeps priority_score == weight."""
+    conn = _conn()
+    _seed_fake_exam(conn)
+    conn.execute(
+        "INSERT INTO topic_coverage (exam_id, topic_id, attempts_count, accuracy, "
+        "coverage_depth, last_computed_at) VALUES (?, ?, ?, ?, ?, ?)",
+        ("fake_exam", "topic_high", 10, 0.9, 1.0, "2026-09-16T00:00:00+00:00"),
+    )
+    conn.commit()
+    items = fetch_items(conn, "fake_exam", "p_general")
+    by_id = {i["topic_id"]: i for i in items}
+    assert by_id["topic_high"]["coverage_depth"] == 1.0
+    assert by_id["topic_high"]["priority_score"] == 0.0
+    # topic_mid still untested -> unchanged behaviour.
+    assert by_id["topic_mid"]["coverage_depth"] == 0.0
+    assert by_id["topic_mid"]["priority_score"] == by_id["topic_mid"]["weight"]
+
+
+def test_fetch_items_partial_coverage_reduces_but_does_not_zero_priority():
+    conn = _conn()
+    _seed_fake_exam(conn)
+    conn.execute(
+        "INSERT INTO topic_coverage (exam_id, topic_id, attempts_count, accuracy, "
+        "coverage_depth, last_computed_at) VALUES (?, ?, ?, ?, ?, ?)",
+        ("fake_exam", "topic_mid", 3, 0.5, 0.5, "2026-09-16T00:00:00+00:00"),
+    )
+    conn.commit()
+    items = fetch_items(conn, "fake_exam", "p_general")
+    by_id = {i["topic_id"]: i for i in items}
+    # weight 10.0 * (1 - 0.5) = 5.0
+    assert by_id["topic_mid"]["priority_score"] == 5.0

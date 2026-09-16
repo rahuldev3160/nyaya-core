@@ -827,3 +827,57 @@ explicitly so a future reader doesn't misread the link as frequency-confirmed. S
 `~/.claude/GLOBAL_LEARNINGS.md` for the general version of this lesson.
 
 **Verification:** 41/41 tests still passing post-migration.
+
+### DECIDE-34 — Real per-user coverage signal built directly on nyaya-core, not joined from Recall {#decide-34}
+**Date:** 2026-09-16 | **Session:** external session, same day as DECIDE-31/32/33
+
+**Decision:** The original plan assumed `coverage_depth` could come from joining
+`exam_topics` against Recall's (Devthorium's) attempt logs. Verified against Recall's live
+code/DB before building anything (Step 0, not just trusting nyaya-core's own notes, which
+could have been stale): `data/upsc.db`'s `topic_weights.exam_source` only has `rbi_grade_b`
+and `upsc_prelims` rows; `pyq_questions` has no exam-scoping column at all (Recall is a
+single-exam app); no file under Devthorium's `backend/`/`scripts/`/`web/` references
+`nyaya-core`, `core.db`, `pfrda`, or `epfo`. Nothing to join. This matches
+`daily_priority.py`'s own module docstring (same session): no per-user attempt table exists
+anywhere in nyaya-core.
+
+**What was built instead:**
+- `scripts/migrate_011_user_attempts_coverage.py` — adds `user_attempts` (attempt-level
+  log: question_id FK to `pyq_bank`, chosen_option, correct_option, is_correct,
+  attempted_at) and `topic_coverage` (computed per exam_id+topic_id: attempts_count,
+  accuracy, coverage_depth, last_computed_at). An untested topic gets NO row — never a row
+  of zeros — so `daily_priority.py`'s existing "no row = untested = coverage_depth 0.0"
+  fallback (the layered-coverage skill's anti-false-positive rule) keeps working unchanged.
+- `scripts/quiz.py` — interactive CLI quiz runner over real `pyq_bank` questions
+  (`status != 'void'`, a real recorded `correct_option`, a non-null `topic_id` — the last
+  two are practical necessities beyond the literal spec: an ungraded or untagged question
+  can't be scored into `topic_coverage`). Reuses `daily_priority.py`'s own
+  `get_scopes`/`fetch_items` ranking to order questions by real priority instead of
+  reimplementing it. Grades each answer immediately, logs to `user_attempts`, then at
+  session end recomputes `topic_coverage` for every topic touched from ALL historical
+  attempts for that topic (not just the session's), per the layered-coverage skill's Q3
+  depth rule: accuracy >= 75% -> 1.0, 45-74% -> accuracy (proportional), < 45% -> accuracy
+  * 0.5 (penalised).
+- `daily_priority.py`'s `fetch_coverage_depth()` now reads real `topic_coverage` rows
+  (falling back to 0.0 when none exist) instead of the previous hardcoded `COVERAGE_DEPTH`
+  stub; `COVERAGE_NOTE` and the uncovered/at-risk counts in both the printed and written
+  report now describe the real mixed state instead of claiming zero coverage everywhere.
+
+**Real surprise found during the demo run:** `exam_topics` (and `topics`) for `pfrda_gradea`
+carry BOTH parent-level topics (e.g. `pfrda_costing`, weight 32.85, a rollup) AND their
+child subtopics (e.g. `pfrda_cost_control_analysis`, weight 9.83) as independent rows —
+real PYQ questions in `pyq_bank` are tagged at whichever granularity DECIDE-31's
+structuring pass landed on (subtopic for most, parent for some, per HANDOFF's existing
+"7 questions fell back to a parent-level topic_id" note). `quiz.py`/`topic_coverage`
+correctly key off whatever `topic_id` a given question actually carries, so this works as-is
+— no design change needed — but it means `daily_priority.py`'s ranked list mixes
+parent-rollup rows and child rows as separate ranked items, which is pre-existing behaviour
+this session did not touch.
+
+**Verification:** 51 pre-existing tests + 19 new (4 `test_daily_priority.py`, 5
+`test_migrate_011.py`, 10 `test_quiz.py`) = 70/70 passing. Demo run against 5 real PFRDA
+General-stream questions (3 right / 2 wrong across `pfrda_companies_act` and
+`pfrda_economics_basic`) confirmed `topic_coverage` populated correctly and
+`daily_priority.py`'s ranking shifted accordingly (`pfrda_companies_act`: rank 2 -> rank 9,
+priority_score 32.10 -> 10.70); demo `user_attempts`/`topic_coverage` rows deleted
+immediately after, confirmed empty before finishing — never Rahul's real progress data.

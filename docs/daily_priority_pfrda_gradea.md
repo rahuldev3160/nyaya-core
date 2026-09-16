@@ -1,12 +1,12 @@
 # Daily priority — PFRDA Officer Grade 'A' (Assistant Manager) (`pfrda_gradea`)
 
-> No real per-user coverage/attempt signal exists in nyaya-core yet (verified against core.db's live schema — no such table). Every item below is ranked at max priority by weight alone: coverage_depth = 0.0 for all items, which is the layered-coverage skill's prescribed value for untested items (untested = 0 = max urgency), not a bug or a filler default. Real per-user accuracy tracking lives in the separate Recall/Scribe app databases, not in nyaya-core.
+> coverage_depth is real where it exists: scripts/quiz.py logs attempts to user_attempts and recomputes topic_coverage (accuracy-based depth) after each session. A topic with no topic_coverage row has never been quizzed — it falls back to coverage_depth = 0.0, the layered-coverage skill's prescribed value for untested items (untested = max urgency, never a fabricated default), not a sign the signal is missing entirely. Most topics still have no row (only a handful have been quizzed so far) — expect a mix of real accuracy-driven ranking and weight-only ranking until more sessions are run.
 
 ## Common (all streams) — `phase1_p1` (Phase I, Paper 1 — English/Quant Aptitude/Reasoning/GA (all streams))
 
 - Total items in scope: 46
-- Uncovered items (coverage = 0): 46 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 23 — i.e. all above-median-weight items, since coverage is 0 everywhere
+- Uncovered items (coverage = 0, never quizzed): 46 of 46
+- At-risk items (weight > median AND coverage < 50%): 23
 
 Showing top 15 of 46:
 
@@ -31,8 +31,8 @@ Showing top 15 of 46:
 ## General stream — `phase1_p2_general` (Phase I, Paper 2 — General stream)
 
 - Total items in scope: 63
-- Uncovered items (coverage = 0): 63 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 28 — i.e. all above-median-weight items, since coverage is 0 everywhere
+- Uncovered items (coverage = 0, never quizzed): 63 of 63
+- At-risk items (weight > median AND coverage < 50%): 28
 
 Showing top 15 of 63:
 
@@ -59,8 +59,8 @@ Showing top 15 of 63:
 > CAVEAT (Research stream): every topic here carries a flat placeholder weight of 1.0 (DECIDE-30). Zero real PYQ content has been ingested for this stream — DECIDE-31's ingestion only covered the General stream — and per docs/research.md#research-11 (6 coaching sources checked, none cover it), likely never will from a coaching source. Ranking within this stream is currently meaningless: treat it as an unordered topic checklist, not a real priority order.
 
 - Total items in scope: 11
-- Uncovered items (coverage = 0): 11 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 0 
+- Uncovered items (coverage = 0, never quizzed): 11 of 11
+- At-risk items (weight > median AND coverage < 50%): 0
 
 Showing top 11 of 11:
 
@@ -81,8 +81,8 @@ Showing top 11 of 11:
 ## Common (all streams) — `phase2_p1` (Phase II, Paper 1 — English descriptive (all streams))
 
 - Total items in scope: 1
-- Uncovered items (coverage = 0): 1 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 0 
+- Uncovered items (coverage = 0, never quizzed): 1 of 1
+- At-risk items (weight > median AND coverage < 50%): 0
 
 Showing top 1 of 1:
 
@@ -93,8 +93,8 @@ Showing top 1 of 1:
 ## General stream — `phase2_p2_general` (Phase II, Paper 2 — General stream)
 
 - Total items in scope: 63
-- Uncovered items (coverage = 0): 63 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 28 — i.e. all above-median-weight items, since coverage is 0 everywhere
+- Uncovered items (coverage = 0, never quizzed): 63 of 63
+- At-risk items (weight > median AND coverage < 50%): 28
 
 Showing top 15 of 63:
 
@@ -121,8 +121,8 @@ Showing top 15 of 63:
 > CAVEAT (Research stream): every topic here carries a flat placeholder weight of 1.0 (DECIDE-30). Zero real PYQ content has been ingested for this stream — DECIDE-31's ingestion only covered the General stream — and per docs/research.md#research-11 (6 coaching sources checked, none cover it), likely never will from a coaching source. Ranking within this stream is currently meaningless: treat it as an unordered topic checklist, not a real priority order.
 
 - Total items in scope: 11
-- Uncovered items (coverage = 0): 11 (all of them — see coverage note below)
-- At-risk items (weight > median AND coverage < 50%): 0 
+- Uncovered items (coverage = 0, never quizzed): 11 of 11
+- At-risk items (weight > median AND coverage < 50%): 0
 
 Showing top 11 of 11:
 

@@ -5,19 +5,18 @@ Applies the `layered-coverage` skill's Q4 scheduling formula
 `data/core.db`, so Rahul gets an actual ranked "study this today" list instead of manual
 judgment.
 
-COVERAGE_DEPTH IS HARDCODED TO 0.0 FOR EVERY ITEM — read this before changing anything.
-Verified directly against the live `core.db` schema (2026-09-16): the only tables are
-`institutions`, `exams`, `papers`, `topics`, `exam_topics`, `content_types`, `sections`,
-`pyq_bank`, `pyq_explanations`, `chunk_tags`. `pyq_bank` tracks question CONTENT and its own
-verification status (verified/void/unverified) — it has no column for what a *user*
-answered, so no per-user attempt/accuracy/coverage signal exists anywhere in this DB. That
-tracking lives in the separate Recall/Scribe app databases, not here. Per the layered-
-coverage skill's anti-false-positive rule, an untested item scores exactly 0 (max urgency),
-never a fabricated default like 0.5 — so today, every item in this script ranks purely by
-weight (priority_score == weight for all rows). This is documented behaviour, not a bug.
-The day nyaya-core gains a real per-user attempt table, replace `COVERAGE_DEPTH` and the
-`fetch_coverage_depth()` stub below with a real query — nothing else in this script assumes
-coverage is always 0.
+**UPDATE (2026-09-16, DECIDE-34):** `coverage_depth` now reads real data. `scripts/quiz.py`
+plus `migrate_011_user_attempts_coverage.py` added a real per-user attempt log
+(`user_attempts`) and a computed `topic_coverage` table (exam_id, topic_id ->
+attempts_count/accuracy/coverage_depth), populated by actually quizzing on real `pyq_bank`
+questions. `fetch_coverage_depth()` below now looks up `topic_coverage` for the given
+(exam_id, topic_id) and returns its real `coverage_depth` when a row exists. Most topics
+still have no row — Rahul has only quizzed a handful so far — and per the layered-coverage
+skill's anti-false-positive rule, "no row" still means untested, which still scores exactly
+0.0 (max urgency), never a fabricated default. So today's output is a real mix: a few
+topics with real accuracy-based coverage, most still ranked at max priority by weight alone.
+This behaviour (some real coverage, most still 0.0) is expected and will keep shifting
+as more quiz sessions are run — it is not a bug.
 
 Usage:
     .venv/bin/python scripts/daily_priority.py [--exam_id pfrda_gradea] [--paper_id ID] [--top 15]
@@ -46,16 +45,18 @@ DOCS_DIR = Path(__file__).parent.parent / "docs"
 DEFAULT_WEIGHT = 1.0
 MIN_WEIGHT = 0.01
 
-# See module docstring: no real per-user coverage/attempt signal exists in nyaya-core yet.
+# Fallback for a topic with no topic_coverage row yet (untested). Per the layered-coverage
+# skill's anti-false-positive rule, untested = 0.0 = max urgency, never a fabricated default.
 COVERAGE_DEPTH = 0.0
 
 COVERAGE_NOTE = (
-    "No real per-user coverage/attempt signal exists in nyaya-core yet (verified against "
-    "core.db's live schema — no such table). Every item below is ranked at max priority by "
-    "weight alone: coverage_depth = 0.0 for all items, which is the layered-coverage skill's "
-    "prescribed value for untested items (untested = 0 = max urgency), not a bug or a filler "
-    "default. Real per-user accuracy tracking lives in the separate Recall/Scribe app "
-    "databases, not in nyaya-core."
+    "coverage_depth is real where it exists: scripts/quiz.py logs attempts to user_attempts "
+    "and recomputes topic_coverage (accuracy-based depth) after each session. A topic with "
+    "no topic_coverage row has never been quizzed — it falls back to coverage_depth = 0.0, "
+    "the layered-coverage skill's prescribed value for untested items (untested = max "
+    "urgency, never a fabricated default), not a sign the signal is missing entirely. Most "
+    "topics still have no row (only a handful have been quizzed so far) — expect a mix of "
+    "real accuracy-driven ranking and weight-only ranking until more sessions are run."
 )
 
 RESEARCH_CAVEAT = (
@@ -68,9 +69,14 @@ RESEARCH_CAVEAT = (
 )
 
 
-def fetch_coverage_depth(topic_id: str) -> float:
-    """Stub for a real per-user coverage signal. Always 0.0 today — see module docstring."""
-    return COVERAGE_DEPTH
+def fetch_coverage_depth(conn: sqlite3.Connection, exam_id: str, topic_id: str) -> float:
+    """Real per-user coverage signal from topic_coverage — falls back to COVERAGE_DEPTH
+    (0.0, untested) when no row exists for this (exam_id, topic_id). See module docstring."""
+    row = conn.execute(
+        "SELECT coverage_depth FROM topic_coverage WHERE exam_id = ? AND topic_id = ?",
+        (exam_id, topic_id),
+    ).fetchone()
+    return row[0] if row is not None else COVERAGE_DEPTH
 
 
 def get_scopes(conn: sqlite3.Connection, exam_id: str, paper_id: str | None) -> list[tuple[str, str]]:
@@ -123,7 +129,7 @@ def fetch_items(conn: sqlite3.Connection, exam_id: str, paper_id: str) -> list[d
     for topic_id, name, parent_topic_id, weight in rows:
         w = weight if weight is not None else DEFAULT_WEIGHT
         w = max(w, MIN_WEIGHT)
-        coverage_depth = fetch_coverage_depth(topic_id)
+        coverage_depth = fetch_coverage_depth(conn, exam_id, topic_id)
         items.append(
             {
                 "topic_id": topic_id,
@@ -140,9 +146,9 @@ def fetch_items(conn: sqlite3.Connection, exam_id: str, paper_id: str) -> list[d
 def compute_at_risk(items: list[dict]) -> list[dict]:
     """layered-coverage anti-false-positive rule: weight > median AND coverage < 50%.
 
-    Coverage is 0.0 for every item here, so this always reduces to "weight above median" —
-    stated plainly in the report rather than presented as independent, higher-precision
-    signal than it actually is.
+    Most items still have coverage_depth == 0.0 (never quizzed), so this still mostly
+    reduces to "weight above median" today — but a topic with real quiz history and
+    accuracy < 50% now genuinely qualifies too, not just untested ones.
     """
     if not items:
         return []
@@ -185,11 +191,11 @@ def build_scope_report(
     md = [f"## {label} — `{paper_id}` ({paper_name})", ""]
     if label == "Research stream":
         md += [f"> {RESEARCH_CAVEAT}", ""]
+    uncovered = [i for i in ranked_all if i["coverage_depth"] == 0.0]
     md += [
         f"- Total items in scope: {len(ranked_all)}",
-        f"- Uncovered items (coverage = 0): {len(ranked_all)} (all of them — see coverage note below)",
-        f"- At-risk items (weight > median AND coverage < 50%): {len(at_risk)} "
-        f"{'— i.e. all above-median-weight items, since coverage is 0 everywhere' if at_risk else ''}",
+        f"- Uncovered items (coverage = 0, never quizzed): {len(uncovered)} of {len(ranked_all)}",
+        f"- At-risk items (weight > median AND coverage < 50%): {len(at_risk)}",
         "",
         f"Showing top {min(top_n, len(ranked_all))} of {len(ranked_all)}:",
         "",
@@ -243,7 +249,9 @@ def run(exam_id: str, paper_id_filter: str | None, top_n: int) -> None:
             print(RESEARCH_CAVEAT)
         ranked_all = sorted(items, key=lambda i: i["priority_score"], reverse=True)
         at_risk = compute_at_risk(ranked_all)
-        print(f"Total items: {len(ranked_all)} | Uncovered (coverage=0): {len(ranked_all)} "
+        uncovered = [i for i in ranked_all if i["coverage_depth"] == 0.0]
+        print(f"Total items: {len(ranked_all)} | Uncovered (coverage=0, never quizzed): "
+              f"{len(uncovered)} of {len(ranked_all)} "
               f"| At-risk (weight>median, coverage<50%): {len(at_risk)}")
         ranked_top = ranked_all[:top_n]
         print_table(ranked_top)
