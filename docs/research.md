@@ -333,3 +333,38 @@ same as a stable multi-year average) but gives it a real anchor point instead of
 
 Source: `epfo_apfc_eoao_2025_question_paper.pdf` (Rahul's own file, UPSC's official 2025
 CRT-IX test booklet, Set A) — read in full, all 44 pages / 120 items.
+
+### RESEARCH-11 — PFRDA Research stream real signal + cross-exam economics/statistics topic-sync plan {#research-11}
+**Date:** 2026-09-16 | **Session:** external
+
+**Question:** What real PYQ/depth/style signal exists for PFRDA Grade A's Research stream
+(zero content ingested — DECIDE-31 only covered General stream), and where does it, UPSC
+CSE's Economics Optional, RBI DEPR, and UPSC IES genuinely overlap enough to cross-link
+canonical topics (DECIDE-19's mechanism) rather than each carrying a separate vocabulary?
+**Finding:** Checked 6 major coaching sources (Adda247, careerpower, Oliveboard, ixamBee,
+Testbook, EduTap) — **none carry any PFRDA Research-stream PYQ content**, all stop at
+General/Finance/Rajbhasha streams. Likely cause: the stream has only ~2 vacancies nationally,
+too small a market for a coaching-site PYQ product to exist. Real syllabus (11 topics, not
+10 — Statistical Quality Control is a genuine 11th item) confirmed against the official
+notification, but actual tested depth/style is honestly unverifiable, not guessed at.
+Built a full cross-exam overlap/depth-mismatch table across PFRDA Research, UPSC Eco
+Optional, RBI DEPR (found to be just a placeholder registration, no real paper/topic
+structure — see DECIDE-32), and IES's existing 156-topic taxonomy (spot-checked, still
+accurate). Proposed reusing `rbi_gradeb`'s existing-but-unlinked canonical topics
+(`macro`/`micro`/`is_lm`/`growth`/`pub_finance`/`intl_econ`/`env_econ`) across eco_optional_1,
+IES, and DEPR; a new `indian_economy_structural` topic (deliberately separate from
+`rbi_gradeb`'s thinner, data-tracking-flavored `indian_econ`) for eco_optional_2 + IES
+`ge_04`; and flagged PFRDA Research ↔ RBI DSIM as a plausible but *unverified* depth match
+(near 1:1 syllabus-name overlap) — recommended notes-only, not a hard link, given zero real
+PFRDA Research PYQ evidence exists to confirm it.
+**Applied to:** DECIDE-32 executed this plan directly — registered real RBI DEPR + a new RBI
+DSIM exam (the notification RBI's own CAPTCHA-gated page had blocked this research pass from
+finding), reused `rbi_gradeb`'s canonical topics as proposed, and confirmed the
+`indian_economy_structural` split was correct (`indian_econ`'s real existing children turned
+out to be exactly "current-developments" flavored, not structural — the DECIDE-29 depth trap,
+caught before it happened). PFRDA Research ↔ DSIM left unlinked, notes-only, per this
+research's own recommendation.
+
+Full detail (per-topic PYQ-search log, the complete overlap table, and the original DEPR
+Phase-II structural-dispute finding this research couldn't resolve on its own):
+`docs/research/RESEARCH-11-pfrda-research-stream-sync.md`

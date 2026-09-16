@@ -16,15 +16,38 @@ frequency count, not a placeholder. **Full detail, including the 11-item conflic
 policy and the pipeline (3 parallel verification agents → 3 parallel structuring agents →
 `scripts/ingest_pfrda_structured.py`):** `docs/decisions.md#decide-31`.
 
-**Next real steps for this exam, no particular order:**
-- **Research stream still has zero real content** — none of the 3 books are Research-stream,
-  so `phase1_p2_research`/`phase2_p2_research` still carry DECIDE-30's flat 1.0 placeholder
-  weight (RISK-07 only partially resolved). Needs a real Research-stream paper-book.
+**Same session, continued — DECIDE-32: RBI DEPR registered for real, RBI DSIM added as 11th
+exam.** Rahul supplied RBI's real 2026 notification (`~/Desktop/opportunities/govt
+notifications/DEPR29042026....pdf`) after RESEARCH-11 (below) found `rbi_depr` was only ever
+a placeholder and hit a CAPTCHA wall trying to resolve a real structural dispute between two
+coaching sources. Real notification resolved it: DEPR Phase II is two Descriptive Economics
+papers (Micro+Macro, then Quant/Econometrics+Indian-Economy-Policy), no separate Statistics
+paper. Also surfaced RBI DSIM (Department of Statistics and Information Management), a
+separate cadre in the same notification whose 9-topic syllabus is a much closer real match to
+PFRDA Research stream than DEPR's own econometrics module — registered as the platform's
+11th exam. Executed RESEARCH-11's cross-exam topic-linking plan (`rbi_gradeb`'s existing
+`macro`/`micro`/`growth`/`pub_finance`/`intl_econ`/`env_econ` now link to `eco_optional_1`,
+IES's `ge_01`-`ge_04`, and DEPR; new `indian_economy_structural` topic links `eco_optional_2`
++ IES `ge_04`). PFRDA Research ↔ DSIM deliberately left unlinked (notes-only on each of
+PFRDA's 11 Research topics) — real 1:1 syllabus-name overlap, but zero real PFRDA
+Research-stream PYQ evidence exists to confirm matching depth. 41/41 tests still passing.
+Full detail: `docs/decisions.md#decide-32`, `docs/research.md#research-11`.
+
+**Next real steps, no particular order:**
+- **PFRDA Research stream still has zero real content and — per RESEARCH-11 — likely never
+  will from a coaching-site source** (checked 6 major sites, none cover it; ~2 vacancies
+  nationally is the likely reason). `phase1_p2_research`/`phase2_p2_research` weights stay
+  DECIDE-30's flat 1.0 placeholder (RISK-07 only resolved for General stream). If Rahul ever
+  finds/creates real Research-stream content, revisit the PFRDA↔DSIM notes-only links first.
 - RISK-08 (Budget/Economic-Survey cross-link) still open, untouched.
-- 7 questions/labels across the 3 years fell back to a parent-level topic_id because no
-  subtopic in the fixed taxonomy fit well (flagged in each `pyq_bank` row's implicit source —
-  see the structuring agents' notes preserved in `data/raw_ingest_staging/pfrda/
-  *_structured.json`) — worth a look if the subtopic taxonomy gets refined further.
+- `eco_optional_1`/`eco_optional_2` and the new `rbi_depr`/`rbi_dsim` topics are ALL flat 1.0
+  placeholder weights (except DEPR's two real 0.5/0.5 "equal weightage" splits) — no real PYQ
+  content has been ingested for any of them yet, same placeholder-until-real-content pattern
+  as PFRDA's own history.
+- 7 PFRDA questions/labels across the 3 ingested years fell back to a parent-level topic_id
+  because no subtopic in the fixed taxonomy fit well (see the structuring agents' notes in
+  `data/raw_ingest_staging/pfrda/*_structured.json`) — worth a look if that taxonomy gets
+  refined further.
 - Phase 2 (hybrid retrieval + API) is still the bigger unbuilt phase generally — this session
   didn't touch it; better sequenced after more real content exists across more exams.
 

@@ -736,3 +736,59 @@ summary counts), normalizes a paper_id naming drift (`phase1_p2`/`phase2_p2` →
 books contain Research-stream content (all 3 are General-stream), so RISK-07 is only
 resolved for the General stream. RISK-08 (Budget/Economic-Survey cross-link) still open,
 untouched this session.
+
+### DECIDE-32 — Register real RBI DEPR + new RBI DSIM exam, execute RESEARCH-11's cross-exam topic-linking plan {#decide-32}
+**Date:** 2026-09-16 | **Session:** external | **Status:** Active
+
+**Decision:** RESEARCH-11 (`docs/research/RESEARCH-11-pfrda-research-stream-sync.md`) found
+`rbi_depr` was only ever a placeholder (zero papers/topics) and couldn't resolve a real
+disagreement between two coaching sources on DEPR's Phase II structure. Rahul supplied the
+real official notification (RBISB/DA/01/2026-27, dated 29.04.2026,
+`~/Desktop/opportunities/govt notifications/DEPR29042026....pdf`, read via vision this
+session) — resolving the dispute definitively: **Phase II is two Descriptive Economics
+papers (Micro+Macro module paper, then Quant/Econometrics+Indian-Economy-Policy module
+paper), no separate Statistics paper, no English in Phase II** (English is Phase I Paper II
+only). Registered `rbi_depr`'s real 4-paper structure and its real syllabus topics.
+
+**Same notification revealed a second, closer sync partner for PFRDA Research stream that
+RESEARCH-11 couldn't find** (RBI's notification page was CAPTCHA-gated for that research
+pass): **RBI DSIM** (Department of Statistics and Information Management), a separate
+Grade B (DR) cadre recruited in the same notification, not previously registered anywhere in
+the platform. DSIM's real 9-topic syllabus (Theory of Probability/Distributions/Sampling,
+Linear Models & Economic Statistics, Statistical Inference, Stochastic Processes,
+Multivariate Analysis, Econometrics & Time Series, Optimization & Statistical Computing,
+Data Science/AI/ML, Database Management) is a much tighter real match to PFRDA Research
+stream's 11 topics than DEPR's own econometrics module — DEPR is fundamentally an economics
+exam with a quant module attached, DSIM is a statistics exam, same shape as PFRDA Research.
+Registered `rbi_dsim` as the platform's 11th exam (3 papers, real topics from its own
+syllabus).
+
+**Executed RESEARCH-11's proposed cross-exam topic-linking**, with one real payoff found
+mid-implementation: `rbi_gradeb`'s canonical `macro`/`micro`/`indian_econ` topics already had
+real children from their original seeding (`consumer_theory`, `production_theory`,
+`money_banking`, `is_lm`, etc. under macro/micro; `india_macro_data`/`rbi_monetary_data`/
+`schemes_indices` under `indian_econ`) — DEPR's Phase II Micro/Macro modules reuse these
+directly (no duplication), and `indian_econ`'s existing children being "current developments"
+flavored (not deep structural/historical) directly **confirms** RESEARCH-11's finding that a
+new `indian_economy_structural` topic (linked only to `upsc_cse/eco_optional_2` +
+`upsc_ies/ge_04`) was the right call, not reusing `indian_econ` — the exact DECIDE-29-shaped
+depth trap, caught before it happened this time. `upsc_cse`'s Economics Optional papers
+(previously zero topics) now link `macro`/`micro`/`intl_econ`/`growth`/`pub_finance`/
+`env_econ`. `upsc_ies`'s `ge_01`-`ge_04` get the same canonical topics linked additively —
+their own 156 real fine-grained topics are untouched, this only adds a coarser cross-exam
+discovery layer alongside them.
+
+**Deliberately NOT auto-linked: PFRDA Research stream ↔ RBI DSIM.** Despite near 1:1
+syllabus-name overlap, RESEARCH-11 found zero real PYQ evidence for PFRDA Research stream —
+asserting depth-equivalence to DSIM's confirmed postgrad-level content would be exactly the
+unverified claim DECIDE-29 already warned against. Instead, each of PFRDA Research's 11
+topics got a `notes` annotation naming its plausible DSIM correspondence (10 of 11 have one;
+`pfrda_statistical_quality_control` has no clean DSIM match, likely PFRDA-specific) — for a
+human to confirm once real PFRDA Research-stream content exists, not decided here.
+
+**Mechanical migration, real weights only where the notification states them:**
+`scripts/migrate_009_register_rbi_depr_dsim.py` — DEPR Phase II's Micro/Macro 0.5/0.5 and
+Quant/Indian-Economy 0.5/0.5 splits are real (notification states "equal weightage"
+explicitly, both places); every other weight is an honest flat 1.0 placeholder (no real
+per-topic frequency exists for DEPR/DSIM/eco_optional/the new IES cross-links — same pattern
+as DECIDE-30's original PFRDA placeholders). 41/41 tests still passing post-migration.

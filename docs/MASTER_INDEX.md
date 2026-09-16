@@ -79,7 +79,9 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-31](decisions.md#decide-31) — Ingested the 3 real PFRDA paper-books (454 MCQs) as coverage intelligence, not a scored quiz bank; built General-stream subtopic layer (92 new subtopics); resolved RISK-07 for General stream
 - [RISK-07](risks.md#risk-07) — PARTIALLY RESOLVED (DECIDE-31): General-stream weights now real; Research-stream still placeholder
 - [RISK-08](risks.md#risk-08) — PFRDA Budget/Economic-Survey cross-link to canonical Indian-Economy topic deliberately deferred, not decided
+- [RESEARCH-11](research.md#research-11) — PFRDA Research stream has zero real PYQ content findable anywhere online (genuine market gap, ~2 vacancies nationally); real cross-exam topic-sync plan for PFRDA Research/UPSC Eco Optional/RBI DEPR/IES
+- [DECIDE-32](decisions.md#decide-32) — Registered real RBI DEPR (4 papers, real notification resolved a structural dispute RESEARCH-11 couldn't) + new RBI DSIM (11th exam) — executed RESEARCH-11's topic-linking plan; `indian_economy_structural` split confirmed correct by `indian_econ`'s existing "current-developments"-flavored children; PFRDA Research↔DSIM deliberately left unlinked (notes only, unverified depth)
 
 ---
 
-**Next available IDs:** DECIDE-32 · BUG-15 · RESEARCH-11 · RISK-09 · ASSUME-02
+**Next available IDs:** DECIDE-33 · BUG-15 · RESEARCH-12 · RISK-09 · ASSUME-02
