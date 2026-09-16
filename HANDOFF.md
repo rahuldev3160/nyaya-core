@@ -43,6 +43,32 @@ paper-book sample — see DECIDE-33 and GL-07 in `~/.claude/GLOBAL_LEARNINGS.md`
 inference would have been unsafe. 41/41 tests still passing.
 
 **Next real steps, no particular order:**
+- **Built `pyq_completeness_ledger` + `scripts/pyq_completeness.py` (DECIDE-36, 2026-09-17,
+  external session, branch `feature/pyq-completeness-ledger`, forked from and fast-forwarded
+  onto DECIDE-35's `feature/ingest-rbi-depr-2025` commit, not merged to main yet):** Rahul
+  noticed Scribe shows incomplete PYQ counts for some UPSC Eco Optional years; a parallel
+  audit is finding the exact real gaps by hand there. Built the reusable, exam-agnostic
+  infrastructure so that question is always a query going forward, for any exam — not a
+  one-off fix. New table `pyq_completeness_ledger` (one row per `exam_id`/`paper_id`/`year`:
+  `expected_count` from a real source, live `actual_count` from `pyq_bank`,
+  `source_reference`, auto-derived `status` complete/partial/unaudited, `gap_detail`,
+  `last_audited_at`). `scripts/pyq_completeness.py record`/`report` — `report` never lets a
+  partial/unaudited row hide in a rollup, and flags any registered paper with zero ledger
+  rows at all as its own explicit category. Verified live against real zero-content
+  `eco_optional_1`/`eco_optional_2` (actual=0, no error) and real EPFO 2023 GAT counts from
+  DECIDE-27 (114/120 → partial, 114/114 → complete), then deleted the sanity-check rows
+  (same discipline as DECIDE-34's demo cleanup) — `pyq_completeness_ledger` is empty again,
+  ready for Rahul's own real audits. Also wrote
+  `docs/eco_optional_migration_readiness.md`: confirmed live that `eco_optional_1`/`_2` only
+  have 6+1 reused canonical topics (not real Eco-Optional depth) while Scribe's own DB
+  already has 81 real topic/subtopic rows to verify-and-curate from; confirmed Scribe's
+  `source_type` values map 1:1 to nyaya-core's but every migrated row must land
+  `status='unverified'` (Scribe has no verification column at all); found Scribe's
+  `question_id`s don't fit `(exam_id, paper_id, year, question_number)` and 55 of its 908
+  rows (`upsc_p2`, 6%) carry an unresolved `year=0`. **No migration performed, no `pyq_bank`
+  rows written, no existing topics touched** — plan/tooling only, pending Rahul's review of
+  this doc plus the parallel audit. 101/101 tests passing (82 pre-existing after DECIDE-35's
+  merge + 19 new). Full detail: `docs/decisions.md#decide-36`.
 - **Ingested RBI DEPR's first-ever real content (DECIDE-35, 2026-09-17, external session,
   branch `feature/ingest-rbi-depr-2025`, not merged to main yet):** `rbi_depr`/`phase1_p1`
   (DECIDE-32's "Phase I, Paper 1 — Objective Type (Economics)") had zero real questions and

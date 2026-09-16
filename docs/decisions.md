@@ -974,3 +974,86 @@ passing.
 `phase2_p1`/`phase2_p2` Descriptive Economics) still carry DECIDE-32's flat placeholder
 weights — this session only had real content for the objective Phase I Paper 1. `Set-2`/
 `Set-3` remain real, unused source material until a matching key is found for either.
+
+### DECIDE-36 — Added reusable, exam-agnostic `pyq_completeness_ledger` + readiness assessment for a future Eco Optional migration {#decide-36}
+**Date:** 2026-09-17 | **Session:** external
+
+**Decision:** Rahul noticed Scribe (Descriptive-exams, a sibling product) shows incomplete
+PYQ counts for some years of UPSC Economics Optional; a separate, parallel audit is finding
+the exact real gaps there by hand (comparing Scribe's DB against real official scanned exam
+PDFs). That audit is a one-off. This task built the reusable infrastructure so the *next*
+time "how much of the real exam content do we actually have, year by year" comes up — for
+any exam, not just Eco Optional — it's a query, not a fresh manual comparison.
+
+**What was built** (`scripts/migrate_013_pyq_completeness_ledger.py` — note: migration
+number 012 was already claimed, uncommitted, by a concurrent session's
+`migrate_012_recompute_rbi_depr_phase1p1_weight.py` at the time this ran; took 013 to avoid
+a collision once both land):
+- `pyq_completeness_ledger` — one row per `(exam_id, paper_id, year)`, the finest grain
+  "how complete is this year's content" makes sense at. `expected_count` (nullable — the
+  real count from an authoritative source, never invented), `actual_count` (live
+  `COUNT(*)` from `pyq_bank`, computed by the population script every run, never manually
+  typed so it can't drift), `source_reference` (free text, a real file path/citation),
+  `status` (`complete`/`partial`/`unaudited`, CHECK-constrained, derived automatically —
+  never passed in), `gap_detail` (free text, which question numbers are missing, when
+  knowable), `last_audited_at`. Composite PK `(exam_id, paper_id, year)` mirrors `papers`'
+  own composite-PK pattern (DECIDE-21) and gives the "proper index on the triple" for free
+  via SQLite's automatic unique index, same as `papers`' `sqlite_autoindex_papers_1`; a
+  separate `idx_pyq_completeness_status` index serves the "every partial/unaudited row,
+  fast" query. FK is the composite `(exam_id, paper_id) REFERENCES papers(exam_id,
+  paper_id)`, same pattern `pyq_bank` already uses. Nothing exam-specific is hardcoded.
+- `scripts/pyq_completeness.py` — `record` (upsert one row: computes `actual_count` live,
+  derives `status` — `unaudited` if `expected_count` unknown, `complete` if
+  `actual >= expected`, `partial` otherwise, including the `actual==0`-but-`expected`-known
+  case, which is a real quantified gap, not "we don't know") and `report` (prints every
+  non-`complete` row explicitly, worst-covered first — unaudited rows sort ahead of
+  quantified partial gaps, and any paper registered in `papers` with **zero** ledger rows
+  at all is flagged separately, so an un-recorded paper is never silently indistinguishable
+  from a clean one. A rollup summary line comes after, never instead of, the explicit
+  listing — same anti-false-positive mechanism the `layered-coverage` skill's "a higher
+  metric must never hide a lower gap" rule already established for `topic_coverage`).
+  Verified against zero-content `eco_optional_1`/`eco_optional_2` (real live state today —
+  `actual_count=0`, no error) and against `upsc_epfo_apfc_eo_ao`/`gat`/2023's real
+  114/120-verified content from DECIDE-27 (produces `partial` at expected=120,
+  `complete` at expected=114) before deleting the sanity-check rows — real progress data,
+  same discipline DECIDE-34's demo cleanup established.
+
+**Migration-readiness assessment** (`docs/eco_optional_migration_readiness.md`) — checked,
+not assumed, against both live DBs:
+- **Taxonomy:** confirmed live — `eco_optional_1` has 6 reused canonical topics,
+  `eco_optional_2` has 1 (`indian_economy_structural`); Scribe's own `upsc_eco_opt.db`
+  already has 81 real topic/subtopic rows (31 P1 + 50 P2) with a real `topic_level`
+  distinction. Per DECIDE-29's precedent, a fresh Eco-Optional-specific taxonomy must be
+  curated before migration — Scribe's 81 rows are a legitimate starting point to verify
+  (same precedent as importing IES/RBI Grade B's taxonomies), not a ready-made import,
+  since the parallel audit is checking exactly this kind of classification for errors.
+- **Provenance mapping:** Scribe's `pyq_questions.source_type` has exactly the same two
+  values nyaya-core already uses (`official_pyq`/`coaching_derived`) — no string
+  translation needed. But Scribe has no `status`-equivalent column at all; every migrated
+  row must land as nyaya-core `status='unverified'` regardless of `source_type`, per
+  DECIDE-27's rule that `verified` is earned only by an actual human check against a real
+  source, never inferred from provenance labels.
+- **ID convention:** Scribe's `question_id` (`upsc_p1_0001`-style, flat sequence, no year
+  scoping) and its total lack of a `question_number` column don't fit nyaya-core's
+  chunk-derived `question_id` + literal `question_number` split (DECIDE-27). Real
+  `question_id`s would need regenerating via nyaya-core's own ingestion against real source
+  PDFs, and `question_number` backfilled from the real paper — not derivable from Scribe's
+  DB alone. Also surfaced a live, concrete blocker: 55 of Scribe's 908 rows
+  (`upsc_p2`, 6%) carry `year=0` (unresolved) and can't be placed at this ledger's grain
+  until resolved against a real source (L-16/L-17: flag-and-halt, never guess).
+
+**Explicitly not done:** no taxonomy built, no `pyq_bank` rows written, no existing
+`eco_optional_1`/`eco_optional_2` `exam_topics` rows touched — this is tooling + a plan,
+migration itself is a separate future task pending Rahul's review of this doc and the
+parallel audit's findings.
+
+**Verification:** 82 pre-existing (after DECIDE-35's merge) + 19 new
+(`tests/test_migrate_013_pyq_completeness_ledger.py`, `tests/test_pyq_completeness.py`,
+covering empty-exam/zero-content, complete, partial, and unaudited cases) = 101/101 passing.
+
+**A real process note, not a design decision:** this task ran in a shared working directory
+with the concurrent DECIDE-35 session (same repo checkout, no worktree isolation) — HEAD
+moved between branches mid-task as that session committed. Verified `data/core.db` is
+git-untracked (checkouts never touch it) before proceeding, then fast-forwarded this
+task's branch onto the finished DECIDE-35 commit rather than diverging from it. Flagging
+here so a future reader isn't surprised this branch's first parent is DECIDE-35's commit.

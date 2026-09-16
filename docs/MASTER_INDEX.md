@@ -84,7 +84,8 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [DECIDE-33](decisions.md#decide-33) — Resolved RISK-08: `pfrda_budget_economic_survey` additively cross-linked to canonical `indian_econ` (genuine scope match, no depth-mismatch); real PFRDA frequency for this topic explicitly left unconfirmed rather than inferred from a non-exhaustive recall-based sample
 - [DECIDE-34](decisions.md#decide-34) — Step 0 confirmed Recall has zero PFRDA/EPFO content to join against; built real per-user coverage directly on nyaya-core instead (`user_attempts`/`topic_coverage` tables, `scripts/quiz.py`, `daily_priority.py` wired to read real `coverage_depth`)
 - [DECIDE-35](decisions.md#decide-35) — Ingested `rbi_depr`/`phase1_p1`'s first-ever real content (real 2025 RBI DEPR Prelims Set-1, Next IAS coaching-derived, 65/65 questions verified against its real digital-text key via new zero-LLM `scripts/extract_answer_key_digital.py`); recomputed `phase1_p1`'s 8 topic weights from real frequency (DECIDE-31's recency-decay formula), all 1.0→4.5-14.4
+- [DECIDE-36](decisions.md#decide-36) — Added reusable, exam-agnostic `pyq_completeness_ledger` table + `scripts/pyq_completeness.py` (`record`/`report`) so "how complete is our real PYQ coverage, year by year" is a query, not a manual audit; wrote `docs/eco_optional_migration_readiness.md` assessing what Scribe's Eco Optional data would need before migration (fresh taxonomy, status remap, question_id/question_number regeneration) — no migration performed, no `pyq_bank`/topic content touched
 
 ---
 
-**Next available IDs:** DECIDE-35 · BUG-15 · RESEARCH-12 · RISK-09 · ASSUME-02
+**Next available IDs:** DECIDE-37 · BUG-15 · RESEARCH-12 · RISK-09 · ASSUME-02
