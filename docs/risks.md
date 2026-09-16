@@ -88,7 +88,7 @@ the original flat 1.0 placeholder; needs a real Research-stream paper-book to re
 as if they were real.
 
 ### RISK-08 — PFRDA Budget/Economic-Survey cross-link deferred, not decided {#risk-08}
-**Date:** 2026-09-15/16 | **Session:** external (Mission 2027) | **Status:** Open
+**Date:** 2026-09-15/16 | **Session:** external (Mission 2027) | **Status:** RESOLVED 2026-09-16
 
 **Risk:** DECIDE-30 rejected cross-linking `pfrda_budget_economic_survey` to the canonical
 Indian-Economy/current-affairs topic in a rushed pass, but flagged it as a plausible real
@@ -96,5 +96,7 @@ match worth revisiting — leaving it un-cross-linked means a future cross-exam 
 will undercount how much this topic actually serves Rahul's broader prep.
 **Mitigation:** Revisit with a real depth/scope comparison (same method DECIDE-29 used)
 before the next PFRDA-related session closes.
-**Escalation trigger:** None urgent — low cost either way until cross-exam topic linking
-(the real unbuilt task named in DECIDE-19/RESEARCH-06) is actually built.
+**Resolution:** DECIDE-33 — linked additively to canonical `indian_econ` (genuine scope
+match, the UG/PG depth-mismatch that blocked DECIDE-30's broader link doesn't apply to
+primary-source Budget/Survey content). Real PFRDA frequency for this topic explicitly left
+unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.

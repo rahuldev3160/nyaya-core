@@ -33,13 +33,21 @@ PFRDA's 11 Research topics) — real 1:1 syllabus-name overlap, but zero real PF
 Research-stream PYQ evidence exists to confirm matching depth. 41/41 tests still passing.
 Full detail: `docs/decisions.md#decide-32`, `docs/research.md#research-11`.
 
+**RISK-08 resolved (2026-09-16, external session, same day as above):**
+`pfrda_budget_economic_survey` additively cross-linked to canonical `indian_econ` (DECIDE-33,
+`scripts/migrate_010_resolve_risk08_budget_ecosurvey.py`) — genuine scope match (Budget/
+Economic Survey are primary-source current-developments documents, not theory of varying
+depth, so DECIDE-30's UG/PG depth-mismatch concern doesn't apply). Real PFRDA frequency for
+this topic explicitly left unconfirmed rather than inferred from the 0/3 recall-based
+paper-book sample — see DECIDE-33 and GL-07 in `~/.claude/GLOBAL_LEARNINGS.md` for why that
+inference would have been unsafe. 41/41 tests still passing.
+
 **Next real steps, no particular order:**
 - **PFRDA Research stream still has zero real content and — per RESEARCH-11 — likely never
   will from a coaching-site source** (checked 6 major sites, none cover it; ~2 vacancies
   nationally is the likely reason). `phase1_p2_research`/`phase2_p2_research` weights stay
   DECIDE-30's flat 1.0 placeholder (RISK-07 only resolved for General stream). If Rahul ever
   finds/creates real Research-stream content, revisit the PFRDA↔DSIM notes-only links first.
-- RISK-08 (Budget/Economic-Survey cross-link) still open, untouched.
 - `eco_optional_1`/`eco_optional_2` and the new `rbi_depr`/`rbi_dsim` topics are ALL flat 1.0
   placeholder weights (except DEPR's two real 0.5/0.5 "equal weightage" splits) — no real PYQ
   content has been ingested for any of them yet, same placeholder-until-real-content pattern

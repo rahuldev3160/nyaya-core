@@ -792,3 +792,38 @@ Quant/Indian-Economy 0.5/0.5 splits are real (notification states "equal weighta
 explicitly, both places); every other weight is an honest flat 1.0 placeholder (no real
 per-topic frequency exists for DEPR/DSIM/eco_optional/the new IES cross-links — same pattern
 as DECIDE-30's original PFRDA placeholders). 41/41 tests still passing post-migration.
+
+### DECIDE-33 — Resolve RISK-08: cross-link PFRDA's Budget/Economic-Survey topic to canonical `indian_econ` {#decide-33}
+**Date:** 2026-09-16 | **Session:** external (Mission 2027 planning) | **Status:** Active
+
+**Decision:** Additively cross-linked `pfrda_budget_economic_survey` (PFRDA General stream,
+`phase1_p2_general` + `phase2_p2_general`) to the canonical `indian_econ` topic already
+shared by RBI DEPR/DSIM, UPSC CSE Eco-Optional, and UPSC IES (DECIDE-32) —
+`scripts/migrate_010_resolve_risk08_budget_ecosurvey.py`. `pfrda_budget_economic_survey`
+itself is kept, not replaced (2 new `exam_topics` rows, weight 1.0, additive alongside it) —
+same pattern as DECIDE-32's IES cross-links.
+
+**Rationale (DECIDE-29's depth/scope method):** DECIDE-30 rejected a broad PFRDA-General-
+Economics link to canonical Macro/Micro because PFRDA General's economics is genuinely
+UG-101 level, below the postgrad depth `indian_econ`'s theory topics assume — that concern
+does not transfer here. Union Budget & Economic Survey are annual primary-source government
+documents, not theory of varying depth; every candidate across every exam studies the same
+actual Budget/Survey each year. `indian_econ`'s existing children (`india_macro_data`:
+GDP/CPI/fiscal-deficit/CAD; `schemes_indices`: PMJDY/MUDRA/PSL etc; DECIDE-32's
+`fiscal_policy_india`, `sectoral_developments_india`) are exactly the content Budget/
+Economic-Survey source documents report — a genuine scope match, not a forced one.
+
+**Explicitly NOT claimed — real PFRDA frequency for this topic remains unconfirmed.**
+DECIDE-31 found zero occurrences of this topic across all 3 real recalled PFRDA paper-books.
+Caught before being read as confirmation: those 3 books are candidate-recall reconstructions
+(not official papers), a dataset that systematically under-captures low-salience facts
+(precise Budget/Survey figures forgotten more easily than a conceptual question) and small
+sections, across only 3 non-exhaustive years. Zero-in-recall is weak/incomplete signal, not
+proof of real-world absence — collapsing "in scope per official syllabus" and "confirmed
+tested at X frequency" into one claim would be exactly the kind of unverified inference this
+repo's own provenance discipline exists to prevent. `pfrda_budget_economic_survey`'s weight
+stays DECIDE-30's honest flat 1.0 placeholder; the new `topics.notes` field states this
+explicitly so a future reader doesn't misread the link as frequency-confirmed. See GL-07 in
+`~/.claude/GLOBAL_LEARNINGS.md` for the general version of this lesson.
+
+**Verification:** 41/41 tests still passing post-migration.
