@@ -1,18 +1,32 @@
 # Project HANDOFF
 
 ## Exact next step
-**DECIDE-30 (2026-09-15/16, external session): PFRDA Grade A registered as the platform's
-10th exam** — `pfrda_gradea`, 6 papers (common Phase-I/II Paper 1 + disjoint General/Research
-Paper 2s), fresh 28-topic taxonomy from the real Advt. 03/2026 notification (Phase-I Paper 1's
-English/Quant/Reasoning/GA weights are real, from the stated 20/20/30/20-of-90 split; all 23
-General/Research Paper-2 topics are flat placeholder weight 1.0 — RISK-07, no real
-per-subject frequency exists yet). **Zero content ingested** — the 3 real PFRDA paper-books
-already on disk (`~/Desktop/PFRDA/*.pdf`, 2021/2022/2025) are the natural next real ingestion
-target, same treatment EPFO got (DECIDE-24→29): run `scripts/ingest.py`, then recompute
-Paper-2 weights from observed frequency to resolve RISK-07. RISK-08 (a plausible
-Budget/Economic-Survey cross-link to the canonical Indian-Economy topic) was deliberately
-deferred, not decided — revisit before the next PFRDA session closes. 41/41 tests still
-passing. Full detail: `docs/decisions.md#decide-30`.
+**DECIDE-31 (2026-09-16, external session): the 3 real PFRDA paper-books are now ingested**
+— 454 real MCQs + 16 descriptive prompts, `pyq_bank`, `source_type='coaching_derived'`
+(these are coaching-site recollections, not official papers). Goal was reframed mid-session
+by Rahul: not a flawless practice-quiz answer key (recollections inherently carry errors) but
+coverage intelligence — which subjects/topics/subtopics/depth/style PFRDA Grade A actually
+tests. Built a real subtopic layer under DECIDE-30's flat 28 topics: 50 subtopics for the 7
+General-stream subjects that actually appear in real PYQs, sourced from the real notification's
+own sub-items (`data/syllabi/pfrda_gradea_general_p2_subtopics.json`), plus 42 bottom-up
+subtopics for Phase-1-Paper-1's aptitude sections derived from real question content
+(`data/syllabi/pfrda_gradea_phase1p1_subtopics.json`, no official breakdown exists for these).
+RISK-07 resolved for General stream — `exam_topics.weight` is now a real recency-decayed
+frequency count, not a placeholder. **Full detail, including the 11-item conflict-resolution
+policy and the pipeline (3 parallel verification agents → 3 parallel structuring agents →
+`scripts/ingest_pfrda_structured.py`):** `docs/decisions.md#decide-31`.
+
+**Next real steps for this exam, no particular order:**
+- **Research stream still has zero real content** — none of the 3 books are Research-stream,
+  so `phase1_p2_research`/`phase2_p2_research` still carry DECIDE-30's flat 1.0 placeholder
+  weight (RISK-07 only partially resolved). Needs a real Research-stream paper-book.
+- RISK-08 (Budget/Economic-Survey cross-link) still open, untouched.
+- 7 questions/labels across the 3 years fell back to a parent-level topic_id because no
+  subtopic in the fixed taxonomy fit well (flagged in each `pyq_bank` row's implicit source —
+  see the structuring agents' notes preserved in `data/raw_ingest_staging/pfrda/
+  *_structured.json`) — worth a look if the subtopic taxonomy gets refined further.
+- Phase 2 (hybrid retrieval + API) is still the bigger unbuilt phase generally — this session
+  didn't touch it; better sequenced after more real content exists across more exams.
 
 **Also worth doing when picking this up again:** the same session that produced DECIDE-30
 found nyaya-core's `exam_topics.weight` column isn't cross-exam-comparable (raw sums range

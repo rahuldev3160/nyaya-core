@@ -669,3 +669,70 @@ rather than decided in a rushed pass; flagged as RISK-07 below.
 read via vision this session (`scripts/migrate_008_register_pfrda.py`'s docstring has full
 citation). Actual PDF ingestion of the 3 real PFRDA paper-books is NOT done — schema/taxonomy
 only. 41/41 tests still passing post-migration.
+
+### DECIDE-31 — Ingest the 3 real PFRDA paper-books as coverage intelligence, not a scored quiz bank {#decide-31}
+**Date:** 2026-09-16 | **Session:** external | **Status:** Active
+
+**Decision:** Ingested all 3 real PFRDA Grade A "recollected question" paper-books
+(`~/Desktop/PFRDA/*.pdf`, 2021/2022/2025 — coaching-site compilations of candidate memory,
+carrying the source's own disclaimer about recall inaccuracy, NOT official PFRDA-released
+papers) — 454 real MCQs + 16 descriptive-English prompts, `source_type = 'coaching_derived'`
+(never `official_pyq`). Resolves RISK-07: `exam_topics.weight` for every topic/subtopic that
+received real data is now a recency-decayed real frequency count
+(`weight = Σ 0.9^(2026 - year)` per real observed occurrence, rolled up from subtopic to
+parent subject), not the DECIDE-30 flat 1.0 placeholder.
+
+**Rationale — goal reframe (Rahul, this session):** the point of this ingestion isn't a
+flawless practice-quiz answer key — recollected questions inherently carry errors — it's
+coverage intelligence: which subjects/topics/subtopics PFRDA Grade A actually tests, at what
+depth, in what style. This changed two things from the EPFO precedent (DECIDE-26/27):
+1. A prior research pass (3 parallel fable-model agents, one per year) cross-verified every
+   MCQ against independent recollection sources (ixamBee etc.) and, where none existed,
+   independent fact-checking (redoing the math, checking real statutes/regulations) —
+   `data/raw_ingest_staging/pfrda/{2021,2022,2025}_verified_questions.md`. 11 items came back
+   genuinely `CONFLICTING` (book's answer disputed by independent verification). Rahul's
+   resolution policy for these, applied case-by-case not by blanket rule: where the
+   independently-verified correct answer is confidently grounded in a real, checkable source
+   (a bare-act section, an official FAQ, or a passage directly contradicting the book) →
+   corrected `correct_option`, `status='verified'` (4 items: 2021 Costing Q5, 2025 RC Q4,
+   2025 NPS Vatsalya Q14, 2025 Companies Act Q3). Where the recollection's own options don't
+   contain any valid real answer (the true fact isn't among the 5 choices — a corrupted
+   recollection, not just an uncertain one) → `correct_option=NULL`, `status='void'` (2
+   items: 2022 GA cricket-award Q, 2025 UN-CEBD year Q). Where genuinely unresolvable either
+   way (ambiguous stem, or a real methodological/convention dispute like syllogism
+   possibility-conclusions) → `correct_option=NULL`, `status='unverified'` (5 items).
+2. Rather than dropping ambiguous items or authoring replacement questions (the initial
+   plan), everything gets ingested — even a `void`/`unverified` question still carries real
+   topic/subtopic signal about what's tested, which is the actual goal now.
+
+**New subtopic layer built the same session** (DECIDE-30 had only 28 flat top-level topics,
+no depth below subject level): 50 subtopics for the 7 General-stream Paper-2 subjects that
+actually appear in real PYQs (Commerce & Accountancy, Management, Finance, Costing,
+Companies Act, Economics, Pension Sector), transcribed directly from the real notification's
+own lettered/numbered sub-items (`data/syllabi/pfrda_gradea_general_p2_subtopics.json`) —
+Companies Act's 7 subtopics are the Act's own real chapter titles (III/IV/VIII/X/XI/XII/
+XXVII), not invented. Plus 42 bottom-up subtopics for Phase-1-Paper-1's aptitude sections
+(Quant/Reasoning/English/GA), which have no official sub-breakdown in the notification —
+consolidated from real per-question labels two independent structuring passes proposed over
+the 2022/2025 papers (`data/syllabi/pfrda_gradea_phase1p1_subtopics.json`).
+
+**Real finding, not previously known:** only 7 of the 12 General-stream syllabus subjects
+ever appear across all 3 real papers (Commerce & Accounts, Management, Finance, Economics,
+Costing, Companies Act, Pension Sector) — PFRDA Act 2013, Union Budget & Economic Survey,
+AI/ML, Media, and Marketing & Communication never show up in any of the 2021/2022/2025
+recollections. Either genuinely new for the 2026 notification or just unsampled — worth
+watching once a 2026 paper (real or recollected) exists to check against.
+
+**Mechanical pipeline, zero LLM in the answer path:** `scripts/ingest_pfrda_structured.py` —
+loads the 3 already-resolved `*_structured.json` files (built by 3 parallel structuring
+agents against Rahul's exact resolution rules, self-checked against each source's own
+summary counts), normalizes a paper_id naming drift (`phase1_p2`/`phase2_p2` →
+`..._general`), remaps Phase-1-Paper-1 subtopic labels via keyword rules, and does a plain
+`INSERT OR IGNORE` into `pyq_bank`. No Haiku call anywhere in this script — every
+`correct_option` traces to the verification pass's own reasoning, never an ingest-time guess.
+
+**Not done, real follow-up:** Research-stream Paper-2 (`phase1_p2_research`/
+`phase2_p2_research`) still carries DECIDE-30's flat 1.0 placeholder weights — none of the 3
+books contain Research-stream content (all 3 are General-stream), so RISK-07 is only
+resolved for the General stream. RISK-08 (Budget/Economic-Survey cross-link) still open,
+untouched this session.

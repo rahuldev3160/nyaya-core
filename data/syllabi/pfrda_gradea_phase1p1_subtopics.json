@@ -1,0 +1,71 @@
+{
+  "_source_note": "Bottom-up subtopic taxonomy for Phase 1 Paper 1 (English/Quant/Reasoning/GA) — the PFRDA notification gives no official sub-breakdown for these standard aptitude sections. Derived by consolidating real question-level labels proposed independently by two structuring passes over the 2022 and 2025 real recollected papers (156 real questions). Near-duplicate labels across the two years were merged into one canonical id.",
+  "subjects": [
+    {
+      "id": "pfrda_quantitative_aptitude",
+      "name": "Quantitative Aptitude (PFRDA)",
+      "topics": [
+        {"id": "pfrda_quant_boats_streams", "name": "Boats & Streams"},
+        {"id": "pfrda_quant_data_interpretation", "name": "Data Interpretation (Bar/Line Chart, Caselet)"},
+        {"id": "pfrda_quant_linear_equations", "name": "Linear Equations (Word Problems)"},
+        {"id": "pfrda_quant_mixtures_alligation", "name": "Mixtures & Alligation"},
+        {"id": "pfrda_quant_number_series", "name": "Number Series"},
+        {"id": "pfrda_quant_partnership", "name": "Partnership"},
+        {"id": "pfrda_quant_quadratic_equations", "name": "Quadratic Equations (Quantity/Data Comparison)"},
+        {"id": "pfrda_quant_ratio_proportion", "name": "Ratio & Proportion"},
+        {"id": "pfrda_quant_time_work", "name": "Time & Work"},
+        {"id": "pfrda_quant_time_speed_distance", "name": "Time, Speed & Distance"},
+        {"id": "pfrda_quant_ages", "name": "Problems on Ages"},
+        {"id": "pfrda_quant_si_ci", "name": "Simple & Compound Interest"},
+        {"id": "pfrda_quant_mensuration", "name": "Mensuration"},
+        {"id": "pfrda_quant_averages", "name": "Averages"}
+      ]
+    },
+    {
+      "id": "pfrda_reasoning",
+      "name": "Test of Reasoning (PFRDA)",
+      "topics": [
+        {"id": "pfrda_reasoning_coding_decoding", "name": "Coding-Decoding (Letter/Word/Number/Machine Input-Output)"},
+        {"id": "pfrda_reasoning_arrangement", "name": "Number/Symbol Arrangement"},
+        {"id": "pfrda_reasoning_puzzle_scheduling", "name": "Puzzle — Date/Month/Day-of-Week Scheduling"},
+        {"id": "pfrda_reasoning_puzzle_seating", "name": "Puzzle — Linear/Floor Seating Arrangement"},
+        {"id": "pfrda_reasoning_puzzle_matching", "name": "Puzzle — Matching-Based (incl. Date & Attribute Matching)"},
+        {"id": "pfrda_reasoning_statement_assumption", "name": "Statement & Assumptions"},
+        {"id": "pfrda_reasoning_syllogism", "name": "Syllogism"},
+        {"id": "pfrda_reasoning_cause_effect", "name": "Cause and Effect"},
+        {"id": "pfrda_reasoning_statement_argument", "name": "Statement & Argument (Critical Reasoning)"}
+      ]
+    },
+    {
+      "id": "pfrda_english_language",
+      "name": "English Language (PFRDA)",
+      "topics": [
+        {"id": "pfrda_eng_cloze_test", "name": "Cloze Test / Word Replacement"},
+        {"id": "pfrda_eng_error_spotting", "name": "Error Spotting"},
+        {"id": "pfrda_eng_para_jumble", "name": "Para Jumbles / Sentence Rearrangement"},
+        {"id": "pfrda_eng_reading_comprehension", "name": "Reading Comprehension (incl. Vocabulary-in-Context)"},
+        {"id": "pfrda_eng_synonyms_vocab", "name": "Synonyms & Word Usage (Vocabulary)"},
+        {"id": "pfrda_eng_word_interchange", "name": "Word / Phrase Interchange"},
+        {"id": "pfrda_eng_fill_blanks", "name": "Fill in the Blanks (Double)"}
+      ]
+    },
+    {
+      "id": "pfrda_general_awareness_financial",
+      "name": "General Awareness incl. Financial Sector (PFRDA)",
+      "topics": [
+        {"id": "pfrda_ga_banking_finance_current", "name": "Banking/Finance Current Affairs (incl. Abbreviations, Regulatory Framework, Digital Payments/Fintech)"},
+        {"id": "pfrda_ga_economy_current", "name": "Economy / Inflation / Taxation Current Affairs"},
+        {"id": "pfrda_ga_govt_schemes", "name": "Government Schemes/Apps & Policy Targets"},
+        {"id": "pfrda_ga_regulatory_bodies", "name": "Regulatory Bodies & Institutions (incl. Institution HQs)"},
+        {"id": "pfrda_ga_reports_indices", "name": "Reports & Indices"},
+        {"id": "pfrda_ga_sports_awards", "name": "Sports & Awards (incl. Brand Ambassadors)"},
+        {"id": "pfrda_ga_defence", "name": "Defence Current Affairs / Exercises"},
+        {"id": "pfrda_ga_static_gk", "name": "Static GK (incl. Books & Authors, Important Days)"},
+        {"id": "pfrda_ga_corporate_industry", "name": "Corporate/Industry Current Affairs"},
+        {"id": "pfrda_ga_international_orgs", "name": "International Organizations & Committees"},
+        {"id": "pfrda_ga_environment", "name": "Environment & Global Agreements"},
+        {"id": "pfrda_ga_science_health", "name": "Science & Health Current Affairs"}
+      ]
+    }
+  ]
+}

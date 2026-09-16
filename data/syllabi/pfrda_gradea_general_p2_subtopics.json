@@ -1,0 +1,97 @@
+{
+  "_source_note": "Real sub-items transcribed directly from PFRDA notification Advt. No. 03/2026 (03.09.2026), Annexure 'Syllabus for Paper 2 for General Stream (Common Syllabus for both phases)', pages 26-28. Companies Act chapter titles (III/IV/VIII/X/XI/XII/XXVII) are the Act's own real, public chapter headings, not invented. No sub-item is added beyond what the source states, except where a subtopic_id groups several comma-separated concepts the source itself lists together under one lettered item.",
+  "subjects": [
+    {
+      "id": "pfrda_commerce_accountancy",
+      "name": "Commerce & Accountancy (PFRDA)",
+      "topics": [
+        {"id": "pfrda_ca_info_system", "name": "Accounting as a Financial Information System"},
+        {"id": "pfrda_ca_standards", "name": "Accounting Standards — Depreciation, Inventories, Revenue Recognition, Fixed Assets, Foreign Exchange Transactions, Investments"},
+        {"id": "pfrda_ca_cashflow_ratio", "name": "Cash Flow Statement, Fund Flow Statement, Financial Statement & Ratio Analysis"},
+        {"id": "pfrda_ca_share_capital", "name": "Accounting for Share Capital Transactions — Bonus Shares, Rights Shares"},
+        {"id": "pfrda_ca_esop_buyback", "name": "Employees Stock Option (ESOP) & Buy-Back of Securities"},
+        {"id": "pfrda_ca_final_accounts", "name": "Preparation & Presentation of Company Final Accounts"}
+      ]
+    },
+    {
+      "id": "pfrda_management",
+      "name": "Management — Processes, Leadership, HRD, Motivation Theories (PFRDA)",
+      "topics": [
+        {"id": "pfrda_mgmt_nature_scope", "name": "Nature & Scope of Management; Management Processes — Planning, Organization, Staffing, Directing, Controlling"},
+        {"id": "pfrda_mgmt_role_manager", "name": "Role of a Manager in an Organization; Leadership — Tasks of a Leader"},
+        {"id": "pfrda_mgmt_leadership_styles", "name": "Leadership Styles & Theories; Successful vs. Effective Leader"},
+        {"id": "pfrda_mgmt_hrd", "name": "Human Resource Development — Concept & Goals of HRD"},
+        {"id": "pfrda_mgmt_motivation", "name": "Motivation, Morale & Incentives — Theories of Motivation, Factors Determining Morale"},
+        {"id": "pfrda_mgmt_communication", "name": "Communication — Process, Channels, Oral vs. Written, Verbal vs. Non-verbal, Barriers, Role of IT"}
+      ]
+    },
+    {
+      "id": "pfrda_finance",
+      "name": "Finance — Financial System/Markets/Derivatives/Fiscal Policy (PFRDA)",
+      "topics": [
+        {"id": "pfrda_fin_regulatory_bodies", "name": "Role & Functions of Regulatory Bodies in the Financial Sector"},
+        {"id": "pfrda_fin_markets", "name": "Primary & Secondary Financial Markets — Forex, Money, Bond, Equity: Functions, Instruments, Recent Developments"},
+        {"id": "pfrda_fin_derivatives", "name": "Basics of Derivatives — Forward, Futures, Swap"},
+        {"id": "pfrda_fin_recent_developments", "name": "Recent Developments in the Financial Sector"},
+        {"id": "pfrda_fin_inclusion", "name": "Financial Inclusion — Use of Technology"},
+        {"id": "pfrda_fin_alt_finance_ppp", "name": "Alternate Sources of Finance; Private & Social Cost-Benefit; Public-Private Partnership"},
+        {"id": "pfrda_fin_tax_frbm", "name": "Direct & Indirect Taxes, Non-tax Revenue, GST, Finance Commission, Fiscal Policy, FRBM Act"},
+        {"id": "pfrda_fin_inflation", "name": "Inflation — Definition, Trends, Estimates, Consequences, Remedies; WPI/CPI"}
+      ]
+    },
+    {
+      "id": "pfrda_costing",
+      "name": "Costing — Cost/Management Accounting, Lean/Six Sigma (PFRDA)",
+      "topics": [
+        {"id": "pfrda_cost_overview", "name": "Overview of Cost & Management Accounting — Objectives & Scope"},
+        {"id": "pfrda_cost_methods", "name": "Methods of Costing — Unit, Job, Batch, Contract, Process/Operation Costing, Service-sector Costing"},
+        {"id": "pfrda_cost_control_analysis", "name": "Cost Control & Analysis — Standard Costing, Marginal Costing, Budget & Budgetary Control"},
+        {"id": "pfrda_cost_lean_jit", "name": "Lean System — Introduction & Just-in-Time (JIT)"},
+        {"id": "pfrda_cost_kaizen", "name": "Kaizen Costing"},
+        {"id": "pfrda_cost_5s", "name": "5S Methodology"},
+        {"id": "pfrda_cost_tpm", "name": "Total Productive Maintenance (TPM)"},
+        {"id": "pfrda_cost_cellular_mfg", "name": "Cellular Manufacturing / One-Piece Flow Production Systems"},
+        {"id": "pfrda_cost_six_sigma", "name": "Six Sigma"},
+        {"id": "pfrda_cost_bpr", "name": "Process Innovation & Business Process Re-engineering (BPR)"}
+      ]
+    },
+    {
+      "id": "pfrda_companies_act",
+      "name": "Companies Act 2013 — Chapters III/IV/VIII/X/XI/XII/XXVII",
+      "topics": [
+        {"id": "pfrda_ca2013_ch3", "name": "Chapter III — Prospectus & Allotment of Securities"},
+        {"id": "pfrda_ca2013_ch4", "name": "Chapter IV — Share Capital & Debentures"},
+        {"id": "pfrda_ca2013_ch8", "name": "Chapter VIII — Declaration & Payment of Dividend"},
+        {"id": "pfrda_ca2013_ch10", "name": "Chapter X — Audit & Auditors"},
+        {"id": "pfrda_ca2013_ch11", "name": "Chapter XI — Appointment & Qualifications of Directors"},
+        {"id": "pfrda_ca2013_ch12", "name": "Chapter XII — Meetings of Board & its Powers"},
+        {"id": "pfrda_ca2013_ch27", "name": "Chapter XXVII — National Company Law Tribunal & Appellate Tribunal"}
+      ]
+    },
+    {
+      "id": "pfrda_economics_basic",
+      "name": "Economics — UG-level (PFRDA General; NOT linked to postgrad-depth canonical Macro Theory topics)",
+      "topics": [
+        {"id": "pfrda_eco_demand_supply_market", "name": "Demand & Supply, Market Structures"},
+        {"id": "pfrda_eco_national_income", "name": "National Income — Concepts & Measurement, Classical & Keynesian Determination of Output/Employment"},
+        {"id": "pfrda_eco_consumption_investment", "name": "Consumption Function, Investment Function, Multiplier & Accelerator"},
+        {"id": "pfrda_eco_is_lm", "name": "Demand & Supply for Money, IS-LM Framework"},
+        {"id": "pfrda_eco_phillips_cycles", "name": "Inflation & Phillips Curve, Business Cycles"},
+        {"id": "pfrda_eco_bop_forex", "name": "Balance of Payments, Foreign Exchange Markets"},
+        {"id": "pfrda_eco_monetary_fiscal_nbfc", "name": "Monetary & Fiscal Policy, Non-Banking Financial Institutions"}
+      ]
+    },
+    {
+      "id": "pfrda_pension_sector",
+      "name": "Pension Sector — NPS, APY, Annuities (PFRDA)",
+      "topics": [
+        {"id": "pfrda_pen_status_india", "name": "Status of the Pension Sector in India"},
+        {"id": "pfrda_pen_retirement_schemes", "name": "Types of Retirement Schemes in India & their Features"},
+        {"id": "pfrda_pen_nps", "name": "National Pension System (NPS)"},
+        {"id": "pfrda_pen_apy", "name": "Atal Pension Yojana (APY)"},
+        {"id": "pfrda_pen_annuity", "name": "Annuity Plans"},
+        {"id": "pfrda_pen_investment_basics", "name": "Basics of Investment"}
+      ]
+    }
+  ]
+}

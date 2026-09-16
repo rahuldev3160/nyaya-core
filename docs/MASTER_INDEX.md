@@ -76,9 +76,10 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [ASSUME-01](decisions.md#assume-01) — Law Optional / Econ Optional source PDFs will be supplied by Rahul later; schema is ready now, ingestion deferred
 
 - [DECIDE-30](decisions.md#decide-30) — Registered PFRDA Grade A (10th exam) — fresh 28-topic taxonomy for General + Research streams, real notification, no ingestion yet
-- [RISK-07](risks.md#risk-07) — PFRDA Paper-2 topic weights are honest flat placeholders, not real frequency data
+- [DECIDE-31](decisions.md#decide-31) — Ingested the 3 real PFRDA paper-books (454 MCQs) as coverage intelligence, not a scored quiz bank; built General-stream subtopic layer (92 new subtopics); resolved RISK-07 for General stream
+- [RISK-07](risks.md#risk-07) — PARTIALLY RESOLVED (DECIDE-31): General-stream weights now real; Research-stream still placeholder
 - [RISK-08](risks.md#risk-08) — PFRDA Budget/Economic-Survey cross-link to canonical Indian-Economy topic deliberately deferred, not decided
 
 ---
 
-**Next available IDs:** DECIDE-31 · BUG-15 · RESEARCH-11 · RISK-09 · ASSUME-02
+**Next available IDs:** DECIDE-32 · BUG-15 · RESEARCH-11 · RISK-09 · ASSUME-02
