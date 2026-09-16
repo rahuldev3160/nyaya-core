@@ -137,6 +137,35 @@ option notes onto statement-based questions where that shape doesn't apply).
 | `grounding_chunk_ids` | JSON list — citations used to generate this explanation, so it can be checked against a real source rather than trusted as pure model recall |
 | `model_version`, `generated_at`, `verified_by`, `reviewed_at` | Same provenance pattern as everything else in this schema |
 
+### `user_attempts` (DECIDE-34)
+Attempt-level log — one row per question Rahul actually answered via `scripts/quiz.py`.
+The only per-user signal anywhere in nyaya-core; everything else in this schema describes
+question/content, never what a user did with it.
+
+| Field | Meaning |
+|---|---|
+| `attempt_id` | PK, autoincrement |
+| `question_id` | FK → `pyq_bank.question_id` |
+| `chosen_option`, `correct_option` | What was picked vs. what was graded correct **at the time of the attempt** — `correct_option` is copied here rather than re-joined at query time, so a later re-verification of `pyq_bank.correct_option` can't silently rewrite history |
+| `is_correct` | 0/1, derived once at attempt time |
+| `attempted_at` | ISO timestamp |
+
+### `topic_coverage` (DECIDE-34)
+One row per (`exam_id`, `topic_id`) actually attempted at least once — computed, not
+measured directly. Recomputed by `scripts/quiz.py` at the end of every session from ALL
+historical `user_attempts` for that topic, not just that session's. **An untested topic has
+NO row here** (never a row of zeros) — `daily_priority.py` treats "no row" as
+`coverage_depth = 0.0`, the layered-coverage skill's anti-false-positive rule (untested =
+max urgency, never a fabricated default).
+
+| Field | Meaning |
+|---|---|
+| `exam_id`, `topic_id` | Composite PK, FKs → `exams`/`topics` |
+| `attempts_count` | Total historical attempts on questions tagged with this exact `topic_id` |
+| `accuracy` | `correct / attempts_count`, 0-1 |
+| `coverage_depth` | layered-coverage skill's Q3 depth rule: accuracy >= 0.75 -> 1.0 (fully covered); 0.45-0.74 -> accuracy (proportional); < 0.45 -> accuracy * 0.5 (penalised) |
+| `last_computed_at` | ISO timestamp of the last recompute |
+
 ---
 
 ## Rules vs. data — where each actually lives

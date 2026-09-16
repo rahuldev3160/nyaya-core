@@ -82,7 +82,8 @@ Pointer catalogue. One line per artefact. Full entries live in the linked files.
 - [RESEARCH-11](research.md#research-11) — PFRDA Research stream has zero real PYQ content findable anywhere online (genuine market gap, ~2 vacancies nationally); real cross-exam topic-sync plan for PFRDA Research/UPSC Eco Optional/RBI DEPR/IES
 - [DECIDE-32](decisions.md#decide-32) — Registered real RBI DEPR (4 papers, real notification resolved a structural dispute RESEARCH-11 couldn't) + new RBI DSIM (11th exam) — executed RESEARCH-11's topic-linking plan; `indian_economy_structural` split confirmed correct by `indian_econ`'s existing "current-developments"-flavored children; PFRDA Research↔DSIM deliberately left unlinked (notes only, unverified depth)
 - [DECIDE-33](decisions.md#decide-33) — Resolved RISK-08: `pfrda_budget_economic_survey` additively cross-linked to canonical `indian_econ` (genuine scope match, no depth-mismatch); real PFRDA frequency for this topic explicitly left unconfirmed rather than inferred from a non-exhaustive recall-based sample
+- [DECIDE-34](decisions.md#decide-34) — Step 0 confirmed Recall has zero PFRDA/EPFO content to join against; built real per-user coverage directly on nyaya-core instead (`user_attempts`/`topic_coverage` tables, `scripts/quiz.py`, `daily_priority.py` wired to read real `coverage_depth`)
 
 ---
 
-**Next available IDs:** DECIDE-33 · BUG-15 · RESEARCH-12 · RISK-09 · ASSUME-02
+**Next available IDs:** DECIDE-35 · BUG-15 · RESEARCH-12 · RISK-09 · ASSUME-02

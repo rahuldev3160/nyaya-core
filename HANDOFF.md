@@ -43,6 +43,50 @@ paper-book sample — see DECIDE-33 and GL-07 in `~/.claude/GLOBAL_LEARNINGS.md`
 inference would have been unsafe. 41/41 tests still passing.
 
 **Next real steps, no particular order:**
+- **Built real per-user coverage (DECIDE-34, 2026-09-16, external session):** the original
+  plan assumed `coverage_depth` could be joined from Recall's (Devthorium's) attempt logs.
+  Verified against Recall's live code/DB first (not just nyaya-core's own notes) — Recall
+  has zero PFRDA/EPFO content: `data/upsc.db`'s `topic_weights.exam_source` only has
+  `rbi_grade_b`/`upsc_prelims`, `pyq_questions` has no exam-scoping column at all, no file
+  anywhere in Devthorium references nyaya-core/core.db/pfrda/epfo. Nothing to join. Built
+  it directly on nyaya-core instead: `scripts/migrate_011_user_attempts_coverage.py` adds
+  `user_attempts` (attempt log) and `topic_coverage` (computed per exam_id+topic_id:
+  attempts_count/accuracy/coverage_depth — no row for an untested topic, never a row of
+  zeros). `scripts/quiz.py` is a new interactive CLI: `.venv/bin/python scripts/quiz.py
+  --exam_id pfrda_gradea [--paper_id ID] [--topic_id ID] [--n 10]` — pulls real quizzable
+  `pyq_bank` questions (verified/unverified-but-void-excluded, real `correct_option`, real
+  `topic_id`), orders them by `daily_priority.py`'s own real ranking (reused, not
+  reimplemented), grades each answer immediately, logs to `user_attempts`, and recomputes
+  `topic_coverage` for every topic touched from ALL historical attempts (not just that
+  session's) using the layered-coverage skill's Q3 depth rule (accuracy >= 75% -> 1.0;
+  45-74% -> accuracy; < 45% -> accuracy * 0.5). `daily_priority.py`'s
+  `fetch_coverage_depth()` now reads real `topic_coverage` rows, falling back to 0.0 for
+  untested topics (unchanged correctness) — its printed/written coverage note and
+  uncovered/at-risk counts now describe this real mixed state instead of claiming zero
+  coverage everywhere. Real surprise found running the demo: `exam_topics` carries both
+  parent topics (e.g. `pfrda_costing`, a rollup) and child subtopics (e.g.
+  `pfrda_cost_control_analysis`) as independent weighted rows, and real PYQ tagging lands at
+  whichever granularity DECIDE-31's structuring pass produced — `quiz.py`/`topic_coverage`
+  key off whatever `topic_id` a question actually carries, so no design change was needed.
+  Demo run (3 right/2 wrong across `pfrda_companies_act`/`pfrda_economics_basic`) confirmed
+  `topic_coverage` populates correctly and `daily_priority.py`'s ranking shifts accordingly
+  (`pfrda_companies_act`: rank 2 -> rank 9, priority_score 32.10 -> 10.70); demo rows deleted
+  immediately after — `user_attempts`/`topic_coverage` are empty again, never mistake this
+  for real progress. Tests: `tests/test_migrate_011.py` (5 new), `tests/test_quiz.py` (10
+  new), `tests/test_daily_priority.py` (+4 for the real-coverage wiring) — 51 pre-existing +
+  19 new = 70/70 passing. Branch `feature/coverage-loop` (built on top of
+  `feature/daily-priority`), not merged to main yet. Full detail: `docs/decisions.md#decide-34`.
+- **Built `scripts/daily_priority.py`** (2026-09-16): CLI implementing the `layered-coverage`
+  skill's Q4 formula (`priority = weight * (1 - coverage_depth)`) against real
+  `exam_topics.weight` data. Run: `.venv/bin/python scripts/daily_priority.py [--exam_id
+  pfrda_gradea] [--paper_id ID] [--top 15]` — prints a ranked table per real paper_id
+  (General/Research/common streams labeled separately for `pfrda_gradea`) and writes
+  `docs/daily_priority_<exam_id>.md` (overwritten each run). `coverage_depth` is hardcoded
+  to 0.0 for every item — confirmed against the live schema that nyaya-core has no per-user
+  attempt/accuracy table (that lives in Recall/Scribe's own DBs) — so today it ranks purely
+  by weight; the Research stream's flat 1.0 placeholder weights make its ranking meaningless
+  and the script says so in its own output. Tests: `tests/test_daily_priority.py` (10 new,
+  51/51 total passing). Branch `feature/daily-priority`, not merged to main yet.
 - **PFRDA Research stream still has zero real content and — per RESEARCH-11 — likely never
   will from a coaching-site source** (checked 6 major sites, none cover it; ~2 vacancies
   nationally is the likely reason). `phase1_p2_research`/`phase2_p2_research` weights stay
