@@ -881,3 +881,179 @@ General-stream questions (3 right / 2 wrong across `pfrda_companies_act` and
 `daily_priority.py`'s ranking shifted accordingly (`pfrda_companies_act`: rank 2 -> rank 9,
 priority_score 32.10 -> 10.70); demo `user_attempts`/`topic_coverage` rows deleted
 immediately after, confirmed empty before finishing — never Rahul's real progress data.
+
+### DECIDE-35 — Ingest RBI DEPR's first-ever real content (2025 Prelims Set-1), recompute `phase1_p1` weight {#decide-35}
+**Date:** 2026-09-17 | **Session:** external | **Status:** Active | **Branch:** `feature/ingest-rbi-depr-2025` (not merged)
+
+**Decision:** `rbi_depr`/`phase1_p1` ("Phase I, Paper 1 — Objective Type (Economics)",
+registered DECIDE-32) had zero real questions and all-flat-1.0 placeholder weights across
+its 8 topics since registration — this session gave it its first real content. Source: a
+real, 14-page, 100-mark, 65-question RBI DEPR Prelims 2025 Set-1 paper plus its matching
+answer key (`~/Desktop/UPSC/Mains/Other Eco Exams/RBI-DEPR (Prelims) Set-1 (2025).pdf` +
+`... Anskey.pdf`) — both are Next IAS coaching-site reproductions of the real exam (digital
+text, "By Vibhas Jha Sir" branding), not an RBI-official release, so `source_type =
+'coaching_derived'` (same provenance category as DECIDE-31's PFRDA books), not
+`official_pyq`. `Set-2`/`Set-3` question PDFs in the same folder were deliberately NOT
+ingested — no matching answer key exists anywhere for either, and DECIDE-27 bans guessing
+one.
+
+**Verified before building (per Rahul's standing rule):** read both real PDFs directly.
+Confirmed the paper is 65 questions (Q1-30 @ 1 mark, Q31-65 @ 2 marks = 100 marks, matching
+the cover page's own stated scheme) and the key is a single flat digital-text list ("1.
+(d)", "14. (c)", ... "65. (c)") — spot-checked 6 values against the source PDF by eye
+before trusting the mechanical parse. Ran `get_page_text_quality()` against the question PDF
+first rather than assuming: 1869 avg chars/page, correctly auto-detected as `digital_pdf`
+(no OCR needed, contrary to a real possibility flagged in this session's brief).
+
+**Pipeline — the existing generic `scripts/ingest.py` fit cleanly, no dedicated structuring
+script needed** (unlike DECIDE-31's PFRDA books, which arrived pre-structured by a separate
+verification pass): this is a single small already-clean digital paper, the exact same shape
+as EPFO's own precedent (DECIDE-27). Copied the question PDF into
+`data/raw_ingest_staging/rbi_depr/` and ran `scripts/ingest.py --exam-id rbi_depr --paper-id
+phase1_p1 --source-type coaching_derived --published-date 2025-01-01`: 65/65 questions
+extracted with clean, gapless `question_number`s 1-65 (2 chunk-boundary duplicate
+extractions correctly deduped by the existing BUG-13 guard, not lost content), 0 individual
+questions flagged. 7 whole *chunks* (cover/instructions pages, not question content) were
+flagged "no registered topic matched" — BUG-09's independent-failure-mode design already
+means this doesn't touch question extraction; a real but harmless retrieval-embedding gap,
+not investigated further (out of this session's scope).
+
+**Answer key was ALSO real digital text, not scanned — a stricter-than-required mechanical
+path was possible.** `scripts/extract_answer_key.py` exists for a *scanned* key (Haiku
+vision transcription, per DECIDE-27) — the wrong tool here. Wrote
+`scripts/extract_answer_key_digital.py` instead: `pdfplumber` text extraction + a plain
+regex over `"<number>. (<letter>)"` pairs, zero LLM call anywhere in the script (stricter
+than DECIDE-27 demands, which only bans an LLM from *judging* the answer — here there isn't
+even a transcription judgment call). Output matches `extract_answer_key.py`'s existing JSON
+shape exactly, so `scripts/merge_answer_key.py` merged it unmodified — no changes to the
+already-tested mechanical-merge script. Result: **65/65 verified against the real key, 0
+unverified, 0 void** — the first RBI DEPR paper-instance with a complete real key, unlike
+EPFO's own history of partial-coverage years.
+
+**Real gap found and fixed with the real source, not guessed:** Q55's 4 options straddled a
+page break in the source PDF; `enrich_chunk`'s per-chunk extraction only captured 2 of them
+(`merge_answer_key.py` printed its existing "only has 2 option(s) extracted" warning,
+correctly still merging the real letter). This is the same BUG-13/14-class chunk-boundary
+miss already known from EPFO ingestion. Fixed by hand from the exact same source PDF page
+already visually verified during this session's own read-before-building step (literal
+transcription of real printed text — `["21.2", "28.6", "36.5", "42.1"]` — not an LLM guess;
+`correct_option='C'` was already right from the mechanical merge, only `options` was
+incomplete). No other question in this batch had an option-count anomaly.
+
+**`scripts/migrate_012_recompute_rbi_depr_phase1p1_weight.py`** recomputed `phase1_p1`'s
+`exam_topics.weight` from this real data, reusing DECIDE-31's exact Q2 recency-decay formula
+(`weight = Σ 0.9^(2026 - year)` per real observed occurrence) — no parent/subtopic rollup
+needed here (all 8 `phase1_p1` topics are top-level, unlike PFRDA's subtopic layer). All 65
+questions are year 2025, so decay is a flat 0.9 per occurrence:
+
+| topic_id | before | after | real question count |
+|---|---|---|---|
+| `depr_quant_methods_econ` | 1.0 | 14.4 | 16 |
+| `intl_econ` | 1.0 | 9.0 | 10 |
+| `growth` | 1.0 | 8.1 | 9 |
+| `macro` | 1.0 | 8.1 | 9 |
+| `micro` | 1.0 | 6.3 | 7 |
+| `pub_finance` | 1.0 | 6.3 | 7 |
+| `indian_econ` | 1.0 | 4.5 | 5 |
+| `env_econ` | 1.0 | 1.8 | 2 |
+
+Only `rbi_depr`/`phase1_p1` was touched — `phase1_p2`/`phase2_p1`/`phase2_p2`'s still-
+placeholder weights, and every other exam, are untouched (this is real signal for exactly
+the paper that received real content, not a broader retroactive change).
+
+**Real API cost:** ~$0.10 (Haiku 4.5: 8,131 input + 13,369 output + 9,206 cache-write +
+110,472 cache-read tokens, one 14-page paper) — cents, matching the cost-consciousness ask;
+the digital-text answer key extraction cost $0, no LLM call at all.
+
+**Verification:** `tests/test_extract_answer_key_digital.py` (8 new, pure-function tests
+against the parser, no PDF/LLM I/O) + `tests/test_migrate_012.py` (4 new, throwaway-sqlite
+pattern per `tests/test_migrate_011.py`'s precedent) — 70 pre-existing + 12 new = 82/82
+passing.
+
+**Not done, real follow-up:** `rbi_depr`'s other 3 papers (`phase1_p2` English descriptive,
+`phase2_p1`/`phase2_p2` Descriptive Economics) still carry DECIDE-32's flat placeholder
+weights — this session only had real content for the objective Phase I Paper 1. `Set-2`/
+`Set-3` remain real, unused source material until a matching key is found for either.
+
+### DECIDE-36 — Added reusable, exam-agnostic `pyq_completeness_ledger` + readiness assessment for a future Eco Optional migration {#decide-36}
+**Date:** 2026-09-17 | **Session:** external
+
+**Decision:** Rahul noticed Scribe (Descriptive-exams, a sibling product) shows incomplete
+PYQ counts for some years of UPSC Economics Optional; a separate, parallel audit is finding
+the exact real gaps there by hand (comparing Scribe's DB against real official scanned exam
+PDFs). That audit is a one-off. This task built the reusable infrastructure so the *next*
+time "how much of the real exam content do we actually have, year by year" comes up — for
+any exam, not just Eco Optional — it's a query, not a fresh manual comparison.
+
+**What was built** (`scripts/migrate_013_pyq_completeness_ledger.py` — note: migration
+number 012 was already claimed, uncommitted, by a concurrent session's
+`migrate_012_recompute_rbi_depr_phase1p1_weight.py` at the time this ran; took 013 to avoid
+a collision once both land):
+- `pyq_completeness_ledger` — one row per `(exam_id, paper_id, year)`, the finest grain
+  "how complete is this year's content" makes sense at. `expected_count` (nullable — the
+  real count from an authoritative source, never invented), `actual_count` (live
+  `COUNT(*)` from `pyq_bank`, computed by the population script every run, never manually
+  typed so it can't drift), `source_reference` (free text, a real file path/citation),
+  `status` (`complete`/`partial`/`unaudited`, CHECK-constrained, derived automatically —
+  never passed in), `gap_detail` (free text, which question numbers are missing, when
+  knowable), `last_audited_at`. Composite PK `(exam_id, paper_id, year)` mirrors `papers`'
+  own composite-PK pattern (DECIDE-21) and gives the "proper index on the triple" for free
+  via SQLite's automatic unique index, same as `papers`' `sqlite_autoindex_papers_1`; a
+  separate `idx_pyq_completeness_status` index serves the "every partial/unaudited row,
+  fast" query. FK is the composite `(exam_id, paper_id) REFERENCES papers(exam_id,
+  paper_id)`, same pattern `pyq_bank` already uses. Nothing exam-specific is hardcoded.
+- `scripts/pyq_completeness.py` — `record` (upsert one row: computes `actual_count` live,
+  derives `status` — `unaudited` if `expected_count` unknown, `complete` if
+  `actual >= expected`, `partial` otherwise, including the `actual==0`-but-`expected`-known
+  case, which is a real quantified gap, not "we don't know") and `report` (prints every
+  non-`complete` row explicitly, worst-covered first — unaudited rows sort ahead of
+  quantified partial gaps, and any paper registered in `papers` with **zero** ledger rows
+  at all is flagged separately, so an un-recorded paper is never silently indistinguishable
+  from a clean one. A rollup summary line comes after, never instead of, the explicit
+  listing — same anti-false-positive mechanism the `layered-coverage` skill's "a higher
+  metric must never hide a lower gap" rule already established for `topic_coverage`).
+  Verified against zero-content `eco_optional_1`/`eco_optional_2` (real live state today —
+  `actual_count=0`, no error) and against `upsc_epfo_apfc_eo_ao`/`gat`/2023's real
+  114/120-verified content from DECIDE-27 (produces `partial` at expected=120,
+  `complete` at expected=114) before deleting the sanity-check rows — real progress data,
+  same discipline DECIDE-34's demo cleanup established.
+
+**Migration-readiness assessment** (`docs/eco_optional_migration_readiness.md`) — checked,
+not assumed, against both live DBs:
+- **Taxonomy:** confirmed live — `eco_optional_1` has 6 reused canonical topics,
+  `eco_optional_2` has 1 (`indian_economy_structural`); Scribe's own `upsc_eco_opt.db`
+  already has 81 real topic/subtopic rows (31 P1 + 50 P2) with a real `topic_level`
+  distinction. Per DECIDE-29's precedent, a fresh Eco-Optional-specific taxonomy must be
+  curated before migration — Scribe's 81 rows are a legitimate starting point to verify
+  (same precedent as importing IES/RBI Grade B's taxonomies), not a ready-made import,
+  since the parallel audit is checking exactly this kind of classification for errors.
+- **Provenance mapping:** Scribe's `pyq_questions.source_type` has exactly the same two
+  values nyaya-core already uses (`official_pyq`/`coaching_derived`) — no string
+  translation needed. But Scribe has no `status`-equivalent column at all; every migrated
+  row must land as nyaya-core `status='unverified'` regardless of `source_type`, per
+  DECIDE-27's rule that `verified` is earned only by an actual human check against a real
+  source, never inferred from provenance labels.
+- **ID convention:** Scribe's `question_id` (`upsc_p1_0001`-style, flat sequence, no year
+  scoping) and its total lack of a `question_number` column don't fit nyaya-core's
+  chunk-derived `question_id` + literal `question_number` split (DECIDE-27). Real
+  `question_id`s would need regenerating via nyaya-core's own ingestion against real source
+  PDFs, and `question_number` backfilled from the real paper — not derivable from Scribe's
+  DB alone. Also surfaced a live, concrete blocker: 55 of Scribe's 908 rows
+  (`upsc_p2`, 6%) carry `year=0` (unresolved) and can't be placed at this ledger's grain
+  until resolved against a real source (L-16/L-17: flag-and-halt, never guess).
+
+**Explicitly not done:** no taxonomy built, no `pyq_bank` rows written, no existing
+`eco_optional_1`/`eco_optional_2` `exam_topics` rows touched — this is tooling + a plan,
+migration itself is a separate future task pending Rahul's review of this doc and the
+parallel audit's findings.
+
+**Verification:** 82 pre-existing (after DECIDE-35's merge) + 19 new
+(`tests/test_migrate_013_pyq_completeness_ledger.py`, `tests/test_pyq_completeness.py`,
+covering empty-exam/zero-content, complete, partial, and unaudited cases) = 101/101 passing.
+
+**A real process note, not a design decision:** this task ran in a shared working directory
+with the concurrent DECIDE-35 session (same repo checkout, no worktree isolation) — HEAD
+moved between branches mid-task as that session committed. Verified `data/core.db` is
+git-untracked (checkouts never touch it) before proceeding, then fast-forwarded this
+task's branch onto the finished DECIDE-35 commit rather than diverging from it. Flagging
+here so a future reader isn't surprised this branch's first parent is DECIDE-35's commit.
