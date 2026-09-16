@@ -881,3 +881,96 @@ General-stream questions (3 right / 2 wrong across `pfrda_companies_act` and
 `daily_priority.py`'s ranking shifted accordingly (`pfrda_companies_act`: rank 2 -> rank 9,
 priority_score 32.10 -> 10.70); demo `user_attempts`/`topic_coverage` rows deleted
 immediately after, confirmed empty before finishing — never Rahul's real progress data.
+
+### DECIDE-35 — Ingest RBI DEPR's first-ever real content (2025 Prelims Set-1), recompute `phase1_p1` weight {#decide-35}
+**Date:** 2026-09-17 | **Session:** external | **Status:** Active | **Branch:** `feature/ingest-rbi-depr-2025` (not merged)
+
+**Decision:** `rbi_depr`/`phase1_p1` ("Phase I, Paper 1 — Objective Type (Economics)",
+registered DECIDE-32) had zero real questions and all-flat-1.0 placeholder weights across
+its 8 topics since registration — this session gave it its first real content. Source: a
+real, 14-page, 100-mark, 65-question RBI DEPR Prelims 2025 Set-1 paper plus its matching
+answer key (`~/Desktop/UPSC/Mains/Other Eco Exams/RBI-DEPR (Prelims) Set-1 (2025).pdf` +
+`... Anskey.pdf`) — both are Next IAS coaching-site reproductions of the real exam (digital
+text, "By Vibhas Jha Sir" branding), not an RBI-official release, so `source_type =
+'coaching_derived'` (same provenance category as DECIDE-31's PFRDA books), not
+`official_pyq`. `Set-2`/`Set-3` question PDFs in the same folder were deliberately NOT
+ingested — no matching answer key exists anywhere for either, and DECIDE-27 bans guessing
+one.
+
+**Verified before building (per Rahul's standing rule):** read both real PDFs directly.
+Confirmed the paper is 65 questions (Q1-30 @ 1 mark, Q31-65 @ 2 marks = 100 marks, matching
+the cover page's own stated scheme) and the key is a single flat digital-text list ("1.
+(d)", "14. (c)", ... "65. (c)") — spot-checked 6 values against the source PDF by eye
+before trusting the mechanical parse. Ran `get_page_text_quality()` against the question PDF
+first rather than assuming: 1869 avg chars/page, correctly auto-detected as `digital_pdf`
+(no OCR needed, contrary to a real possibility flagged in this session's brief).
+
+**Pipeline — the existing generic `scripts/ingest.py` fit cleanly, no dedicated structuring
+script needed** (unlike DECIDE-31's PFRDA books, which arrived pre-structured by a separate
+verification pass): this is a single small already-clean digital paper, the exact same shape
+as EPFO's own precedent (DECIDE-27). Copied the question PDF into
+`data/raw_ingest_staging/rbi_depr/` and ran `scripts/ingest.py --exam-id rbi_depr --paper-id
+phase1_p1 --source-type coaching_derived --published-date 2025-01-01`: 65/65 questions
+extracted with clean, gapless `question_number`s 1-65 (2 chunk-boundary duplicate
+extractions correctly deduped by the existing BUG-13 guard, not lost content), 0 individual
+questions flagged. 7 whole *chunks* (cover/instructions pages, not question content) were
+flagged "no registered topic matched" — BUG-09's independent-failure-mode design already
+means this doesn't touch question extraction; a real but harmless retrieval-embedding gap,
+not investigated further (out of this session's scope).
+
+**Answer key was ALSO real digital text, not scanned — a stricter-than-required mechanical
+path was possible.** `scripts/extract_answer_key.py` exists for a *scanned* key (Haiku
+vision transcription, per DECIDE-27) — the wrong tool here. Wrote
+`scripts/extract_answer_key_digital.py` instead: `pdfplumber` text extraction + a plain
+regex over `"<number>. (<letter>)"` pairs, zero LLM call anywhere in the script (stricter
+than DECIDE-27 demands, which only bans an LLM from *judging* the answer — here there isn't
+even a transcription judgment call). Output matches `extract_answer_key.py`'s existing JSON
+shape exactly, so `scripts/merge_answer_key.py` merged it unmodified — no changes to the
+already-tested mechanical-merge script. Result: **65/65 verified against the real key, 0
+unverified, 0 void** — the first RBI DEPR paper-instance with a complete real key, unlike
+EPFO's own history of partial-coverage years.
+
+**Real gap found and fixed with the real source, not guessed:** Q55's 4 options straddled a
+page break in the source PDF; `enrich_chunk`'s per-chunk extraction only captured 2 of them
+(`merge_answer_key.py` printed its existing "only has 2 option(s) extracted" warning,
+correctly still merging the real letter). This is the same BUG-13/14-class chunk-boundary
+miss already known from EPFO ingestion. Fixed by hand from the exact same source PDF page
+already visually verified during this session's own read-before-building step (literal
+transcription of real printed text — `["21.2", "28.6", "36.5", "42.1"]` — not an LLM guess;
+`correct_option='C'` was already right from the mechanical merge, only `options` was
+incomplete). No other question in this batch had an option-count anomaly.
+
+**`scripts/migrate_012_recompute_rbi_depr_phase1p1_weight.py`** recomputed `phase1_p1`'s
+`exam_topics.weight` from this real data, reusing DECIDE-31's exact Q2 recency-decay formula
+(`weight = Σ 0.9^(2026 - year)` per real observed occurrence) — no parent/subtopic rollup
+needed here (all 8 `phase1_p1` topics are top-level, unlike PFRDA's subtopic layer). All 65
+questions are year 2025, so decay is a flat 0.9 per occurrence:
+
+| topic_id | before | after | real question count |
+|---|---|---|---|
+| `depr_quant_methods_econ` | 1.0 | 14.4 | 16 |
+| `intl_econ` | 1.0 | 9.0 | 10 |
+| `growth` | 1.0 | 8.1 | 9 |
+| `macro` | 1.0 | 8.1 | 9 |
+| `micro` | 1.0 | 6.3 | 7 |
+| `pub_finance` | 1.0 | 6.3 | 7 |
+| `indian_econ` | 1.0 | 4.5 | 5 |
+| `env_econ` | 1.0 | 1.8 | 2 |
+
+Only `rbi_depr`/`phase1_p1` was touched — `phase1_p2`/`phase2_p1`/`phase2_p2`'s still-
+placeholder weights, and every other exam, are untouched (this is real signal for exactly
+the paper that received real content, not a broader retroactive change).
+
+**Real API cost:** ~$0.10 (Haiku 4.5: 8,131 input + 13,369 output + 9,206 cache-write +
+110,472 cache-read tokens, one 14-page paper) — cents, matching the cost-consciousness ask;
+the digital-text answer key extraction cost $0, no LLM call at all.
+
+**Verification:** `tests/test_extract_answer_key_digital.py` (8 new, pure-function tests
+against the parser, no PDF/LLM I/O) + `tests/test_migrate_012.py` (4 new, throwaway-sqlite
+pattern per `tests/test_migrate_011.py`'s precedent) — 70 pre-existing + 12 new = 82/82
+passing.
+
+**Not done, real follow-up:** `rbi_depr`'s other 3 papers (`phase1_p2` English descriptive,
+`phase2_p1`/`phase2_p2` Descriptive Economics) still carry DECIDE-32's flat placeholder
+weights — this session only had real content for the objective Phase I Paper 1. `Set-2`/
+`Set-3` remain real, unused source material until a matching key is found for either.

@@ -43,6 +43,41 @@ paper-book sample — see DECIDE-33 and GL-07 in `~/.claude/GLOBAL_LEARNINGS.md`
 inference would have been unsafe. 41/41 tests still passing.
 
 **Next real steps, no particular order:**
+- **Ingested RBI DEPR's first-ever real content (DECIDE-35, 2026-09-17, external session,
+  branch `feature/ingest-rbi-depr-2025`, not merged to main yet):** `rbi_depr`/`phase1_p1`
+  (DECIDE-32's "Phase I, Paper 1 — Objective Type (Economics)") had zero real questions and
+  all-flat-1.0 placeholder weights since registration. Ingested the real 2025 RBI DEPR
+  Prelims Set-1 paper (`~/Desktop/UPSC/Mains/Other Eco Exams/RBI-DEPR (Prelims) Set-1
+  (2025).pdf` + its answer key — both a real, digital-text Next IAS reproduction of the exam,
+  `source_type='coaching_derived'`, not an RBI-official release) via the existing generic
+  `scripts/ingest.py` pipeline (fit cleanly, same shape as EPFO's digital-PDF precedent —
+  no dedicated structuring script needed this time). 65/65 questions extracted with clean
+  `question_number`s 1-65, all mapped to one of the 8 already-registered `phase1_p1` topics
+  (0 questions flagged; 7 whole *chunks* — cover/instruction pages, not questions — flagged
+  "no registered topic matched," a real but harmless retrieval-embedding gap, BUG-09's
+  independent-failure-mode design already handles this). Answer key was ALSO real digital
+  text (not scanned) — wrote `scripts/extract_answer_key_digital.py` (pure `pdfplumber` +
+  regex, zero LLM at all, stricter than DECIDE-27 requires) instead of reusing the
+  scanned-key/Haiku-vision `scripts/extract_answer_key.py`; merged via the existing
+  `scripts/merge_answer_key.py` unmodified (DECIDE-27's mechanical-merge-only path). Result:
+  **65/65 verified, 0 unverified, 0 void** — a full real key existed for every question, a
+  first for this platform. One real chunk-boundary extraction gap found (BUG-13/14's known
+  class): Q55's options split across a page break, only 2 of 4 extracted automatically;
+  manually patched from the same source PDF page already visually verified during this
+  session's own read-before-building step (literal transcription of real printed text, not
+  an LLM guess — the row's `correct_option='C'` was already correct from the mechanical
+  merge, only the `options` array was incomplete). `scripts/migrate_012_recompute_rbi_depr_
+  phase1p1_weight.py` recomputed `phase1_p1`'s `exam_topics.weight` from this real data
+  (DECIDE-31's Q2 recency-decay formula, `0.9^years_ago`; all 2025 so decay=0.9 flat):
+  `depr_quant_methods_econ` 1.0→14.4, `intl_econ` 1.0→9.0, `macro`/`growth` 1.0→8.1 each,
+  `micro`/`pub_finance` 1.0→6.3 each, `indian_econ` 1.0→4.5, `env_econ` 1.0→1.8 — real
+  first signal for this exam's Phase I Paper 1, no longer a flat placeholder. Real API cost:
+  ~$0.10 (Haiku 4.5, 8131 input + 13369 output + 9206 cache-write + 110472 cache-read
+  tokens — one 14pp paper, cents not dollars, per the cost-consciousness ask). Set-2/Set-3
+  question PDFs deliberately NOT touched — no matching answer key exists anywhere for either,
+  per this session's explicit scope. Tests: `tests/test_extract_answer_key_digital.py` (8
+  new, pure parser function, no I/O), `tests/test_migrate_012.py` (4 new, throwaway-sqlite
+  pattern) — 70 pre-existing + 12 new = 82/82 passing.
 - **Built real per-user coverage (DECIDE-34, 2026-09-16, external session):** the original
   plan assumed `coverage_depth` could be joined from Recall's (Devthorium's) attempt logs.
   Verified against Recall's live code/DB first (not just nyaya-core's own notes) — Recall
