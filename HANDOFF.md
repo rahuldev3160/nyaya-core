@@ -43,6 +43,17 @@ paper-book sample — see DECIDE-33 and GL-07 in `~/.claude/GLOBAL_LEARNINGS.md`
 inference would have been unsafe. 41/41 tests still passing.
 
 **Next real steps, no particular order:**
+- **Built `scripts/daily_priority.py`** (2026-09-16): CLI implementing the `layered-coverage`
+  skill's Q4 formula (`priority = weight * (1 - coverage_depth)`) against real
+  `exam_topics.weight` data. Run: `.venv/bin/python scripts/daily_priority.py [--exam_id
+  pfrda_gradea] [--paper_id ID] [--top 15]` — prints a ranked table per real paper_id
+  (General/Research/common streams labeled separately for `pfrda_gradea`) and writes
+  `docs/daily_priority_<exam_id>.md` (overwritten each run). `coverage_depth` is hardcoded
+  to 0.0 for every item — confirmed against the live schema that nyaya-core has no per-user
+  attempt/accuracy table (that lives in Recall/Scribe's own DBs) — so today it ranks purely
+  by weight; the Research stream's flat 1.0 placeholder weights make its ranking meaningless
+  and the script says so in its own output. Tests: `tests/test_daily_priority.py` (10 new,
+  51/51 total passing). Branch `feature/daily-priority`, not merged to main yet.
 - **PFRDA Research stream still has zero real content and — per RESEARCH-11 — likely never
   will from a coaching-site source** (checked 6 major sites, none cover it; ~2 vacancies
   nationally is the likely reason). `phase1_p2_research`/`phase2_p2_research` weights stay
