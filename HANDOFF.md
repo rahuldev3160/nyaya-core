@@ -1,6 +1,21 @@
 # Project HANDOFF
 
-## Exact next step
+## Exact next step (2026-09-18, current)
+**No code work is pending in this repo right now — 4 PRs are open across the 3-repo
+ecosystem, awaiting Rahul's review/merge and his own manual GCP/Vercel setup:**
+- nyaya-core PR #1 (`infra/cloud-run-scaffold`) — Cloud Run hosting scaffold
+- Devthorium PR #58 (`feature/pfrda-epfo-mode2-ai-quiz`) — AI-generated PFRDA/EPFO quizzes
+- Devthorium PR #59 (`infra/cloud-run-scaffold`) — Cloud Run + Vercel hosting scaffold
+- nyaya-scribe PR #1 (`infra/cloud-run-scaffold`) — Cloud Run hosting scaffold
+
+If resuming real build work before those land, the next unblocked candidates (no external
+blocker) are: **Eco-Optional migration** (`docs/eco_optional_migration_readiness.md` —
+re-curate a real taxonomy from Scribe's own 81 topic rows; 3 other blockers listed there)
+or **populate `pyq_completeness_ledger`** with real counts (starting with Eco-Optional's
+known gaps). Cross-exam topic linking is closed out for now — see RESEARCH-12/RISK-9,
+Rahul chose not to merge EPFO/PFRDA's English taxonomies.
+
+## Prior "exact next step" (2026-09-17, S9 — now superseded, kept for context)
 **DECIDE-37 (2026-09-17, S9): Phase 2 (hybrid retrieval + API) is built and tested —
 127/127 passing.** `src/retrieval/hybrid_engine.py` (dense+FTS+RRF+FlashRank rerank,
 score floor, trust-weighting, auto-merge) and `src/api/` (`/exams /papers /topics
