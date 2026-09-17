@@ -32,11 +32,20 @@ EPFO 28 topics/345 dimensions (1 flagged) — committed to Devthorium `main`
 (`data/dimensions/{exam_id}.json`). Phase C's Mode 1 (real-PYQ drill, zero LLM calls —
 `backend/nyaya_core_client.py` + `backend/routes/nyaya_pyq_drill.py`) and Phase D's UI
 (`web/src/app/nyaya/page.tsx`, in both nav bars) shipped together as Devthorium PR #57,
-reviewed and merged to `main` by Rahul. **Only Phase C's Mode 2 (AI-generated quizzes,
-matching UPSC Prelims' dimension-based generation) remains undone** — deferred
-deliberately: Devthorium's `quiz.py` has no single `exam_id`-branchable choke point
-(`subject_id`/`subtopic_id` threaded through many nested functions), confirmed by
-reading the full 1517-line file, not assumed. Tracked as Devthorium `FEATURES.md` #22.
+reviewed and merged to `main` by Rahul.
+
+**2026-09-18: Phase C's Mode 2 (AI-generated quizzes) is now built too**, on Devthorium
+branch `feature/pfrda-epfo-mode2-ai-quiz` (not yet merged — awaiting Rahul's review, same
+pattern as PR #57). `quiz.py`'s single `POST /quiz/generate` endpoint turned out to branch
+cleanly at its own top (before any of the `subject_id`/`subtopic_id`-threaded nested
+functions run) — the earlier "no single choke point" read was about the internals, not the
+entry point. **Real finding, load-bearing:** nyaya-core has zero indexed LanceDB chunks for
+either exam (per `scripts/inventory.py`), so Mode 2 grounds itself in real `pyq_bank`
+content via `/topic/{id}/brief`, not `/search` — same conclusion DECIDE-37 already reached
+for Mode 1, now confirmed true for Mode 2's design too. Hard-errors (422) only when a topic
+has neither indexed chunks nor real PYQs. Full detail: Devthorium's own `FEATURES.md`/
+`ISSUES.md`/`HANDOFF.md` (ISSUE-030 also logged there, unrelated pre-existing bug found
+incidentally while verifying this).
 Read the plan file for the original file-level design before picking that up.
 
 **DECIDE-31 (2026-09-16, external session): the 3 real PFRDA paper-books are now ingested**
