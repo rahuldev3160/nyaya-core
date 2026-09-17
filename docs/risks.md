@@ -102,7 +102,7 @@ primary-source Budget/Survey content). Real PFRDA frequency for this topic expli
 unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.
 
 ### RISK-09 — EPFO/PFRDA English-taxonomy granularity mismatch blocks a real, substantial cross-link {#risk-09}
-**Date:** 2026-09-18 | **Session:** current | **Status:** OPEN
+**Date:** 2026-09-18 | **Session:** current | **Status:** RESOLVED 2026-09-18 (deferred, not merged)
 
 **Risk:** RESEARCH-12 found EPFO's `general_english` family (92 real PYQs, 3 buckets:
 grammar/vocab/RC) and PFRDA's `pfrda_english_language` family (40 real PYQs, 7 finer buckets:
@@ -121,4 +121,6 @@ Haiku pass, evidence-based not invented, but costs real API calls and re-tags li
 already-built bottom-up granularity for PFRDA's own coverage-intelligence use). No default
 chosen; flag before any English-content work in either exam proceeds further.
 **Escalation trigger:** Before merging, deleting, or retagging any topic in either family.
+**Resolution:** Rahul chose option (a) — leave both taxonomies separate. No merge, no
+retagging, no query benefit gained; revisit only if a real reason to unify surfaces later.
 unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.
