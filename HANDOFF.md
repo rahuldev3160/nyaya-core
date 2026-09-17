@@ -1,6 +1,36 @@
 # Project HANDOFF
 
 ## Exact next step
+**DECIDE-37 (2026-09-17, S9): Phase 2 (hybrid retrieval + API) is built and tested —
+127/127 passing.** `src/retrieval/hybrid_engine.py` (dense+FTS+RRF+FlashRank rerank,
+score floor, trust-weighting, auto-merge) and `src/api/` (`/exams /papers /topics
+/search /pyq /topic/{id}/brief /verify_citation /ingest` + new `/attempt`), bound to
+`127.0.0.1` only. Run: `.venv/bin/python -m src.api.main`.
+
+**Real finding, not hypothetical:** `scripts/inventory.py` (built first) immediately
+showed PFRDA has **zero** indexed LanceDB chunks and EPFO only 125 thin ones (vs.
+470/660 real `pyq_bank` rows) — `/search` returns `insufficient_grounding=True` for
+PFRDA on essentially every query today. `/pyq` (structured, abundant for both exams) is
+the real foundation for PFRDA/EPFO practice, not `/search` — confirmed via a live
+regression test (`tests/test_hybrid_engine.py`).
+
+**BUG-15 found + fixed same session:** `pyq_bank.options` is stored as a dict for
+`pfrda_gradea` but as a plain list (no letters) for `rbi_depr`/`upsc_epfo_apfc_eo_ao` —
+`scripts/quiz.py`'s `print_question()` would have crashed on every rbi_depr/EPFO row.
+Fixed via a shared `normalize_options()` (`scripts/quiz.py`), reused by the new
+`/pyq`/`/topic/{id}/brief` endpoints so every consumer sees one consistent shape.
+
+**This work is part of a larger, already-approved plan** (Rahul asked for PFRDA/EPFO MCQ
+practice "ASAP" and explicitly chose the full-architecture path over a quick interim UI):
+`~/.claude/plans/functional-stirring-galaxy.md`. Phase A (this session, nyaya-core-only)
+is done. **Phases B/C/D are Devthorium-side, not started:** B = real-PYQ-grounded
+dimension generation (new `generate_dimensions_from_pyqs.py`, calling nyaya-core's
+`/pyq` — NOT `/search`, per the chunk-gap finding above); C = exam-context plumbing in
+Devthorium's live `quiz.py` generation path only (additive, existing UPSC
+Prelims/Chroma path untouched — see DECIDE-37 for why unification was rejected for now);
+D = UI exam switching in Devthorium's frontend. Read the plan file for full file-level
+detail before starting Phase B.
+
 **DECIDE-31 (2026-09-16, external session): the 3 real PFRDA paper-books are now ingested**
 — 454 real MCQs + 16 descriptive prompts, `pyq_bank`, `source_type='coaching_derived'`
 (these are coaching-site recollections, not official papers). Goal was reframed mid-session

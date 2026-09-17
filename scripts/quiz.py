@@ -164,10 +164,29 @@ def recompute_topic_coverage(conn: sqlite3.Connection, exam_id: str, topic_id: s
     }
 
 
+_LETTERS = "ABCDEFGHIJ"
+
+
+def normalize_options(raw: str | None) -> dict[str, str]:
+    """pyq_bank.options is real JSON but not uniformly a dict — verified live against
+    data/core.db: pfrda_gradea stores `{"A": "...", ...}`, but rbi_depr and
+    upsc_epfo_apfc_eo_ao both store a plain list `["...", "...", ...]` instead (a
+    pre-existing per-exam ingestion difference, not touched here). Without this, this
+    function crashed on every rbi_depr/EPFO row (`options[letter]` on a list with a
+    string key) — never caught before because this script's own examples only ever used
+    --exam_id pfrda_gradea."""
+    if not raw:
+        return {}
+    parsed = json.loads(raw)
+    if isinstance(parsed, dict):
+        return parsed
+    return {_LETTERS[i]: text for i, text in enumerate(parsed)}
+
+
 def print_question(idx: int, total: int, q: dict) -> None:
     print(f"\n--- Question {idx}/{total} [{q['topic_id']}] ---")
     print(q["question_text"])
-    options = json.loads(q["options"]) if q["options"] else {}
+    options = normalize_options(q["options"])
     for letter in sorted(options):
         print(f"  {letter}) {options[letter]}")
 

@@ -313,6 +313,29 @@ question, so the DB's own `ON CONFLICT` can't catch this class of duplicate. A f
 should either eliminate the chunk-boundary overlap at the source, or de-duplicate by
 `(exam_id, paper_id, year, question_number)` at ingest time before persisting.
 
+### BUG-15 — `pyq_bank.options` stored as a list for rbi_depr/EPFO, crashing dict-shaped consumers {#bug-15}
+**Date:** 2026-09-17 | **Session:** S9 (Phase 2 build) | **Fixed:** Yes
+
+**Root cause:** `pyq_bank.options` is real JSON but was never uniformly one shape across
+exams — `pfrda_gradea` stores `{"A": "...", "B": "...", ...}` (437 rows), but `rbi_depr`
+(65 rows) and `upsc_epfo_apfc_eo_ao` (660 rows) both store a plain JSON list
+`["...", "...", ...]` with no letters at all, from a different ingestion path. Found live
+while building the new `/topic/{id}/brief` endpoint against a real EPFO row —
+`scripts/quiz.py`'s `print_question()` (`options[letter]` on a list with a string key)
+would have crashed on every single rbi_depr/EPFO row, never caught before because this
+script's own docstring/examples only ever demonstrated `--exam_id pfrda_gradea`.
+**Fix:** New `normalize_options()` in `scripts/quiz.py` (converts a list to
+`{A: ..., B: ..., ...}` by position, passes a dict through unchanged) — used by both
+`scripts/quiz.py`'s `print_question()` and the new `/pyq`/`/topic/{id}/brief` API
+endpoints (`src/api/routes.py`), so every consumer sees one consistent dict shape
+regardless of the underlying storage difference. The underlying storage inconsistency
+itself was NOT changed — normalized only at read time.
+**Lesson:** A field's shape being "real JSON, verified against live data" for one exam
+does not mean it's the same shape for every exam — different ingestion runs/scripts can
+silently disagree on a JSON field's internal structure. Any new consumer of a
+multi-source JSON column should check the shape actually stored for every exam it will
+touch, not just the one exam its author happened to test against.
+
 **Format for future entries:**
 ```
 ### BUG-XX — Short description {#bug-xx}

@@ -8,8 +8,11 @@ siloed, weaker pipeline.
 **Core goal:** adding a new exam should mean "add a registry row + drop PDFs in a folder +
 run ingest" — zero code changes.
 
-**Status:** Phase 0+1 complete — full ingestion pipeline (parse → chunk → enrich → embed →
-LanceDB) built, tested, and validated against real content. 10 exams registered
+**Status:** Phase 0+1+2 complete — full ingestion pipeline (parse → chunk → enrich → embed
+→ LanceDB) AND hybrid retrieval + FastAPI (`src/retrieval/`, `src/api/`) built, tested,
+and validated against real content (127/127 tests). `scripts/inventory.py` found PFRDA
+has zero indexed chunks and EPFO only 125 thin ones — `/pyq` (structured) is the real
+foundation for both, not `/search` (see DECIDE-37). 10 exams registered
 (`upsc_cse`, `upsc_ies`, `rbi_gradeb`, `rbi_depr`, `uppcs`, `hpas`, `ukpsc`, `mppsc`,
 `upsc_epfo_apfc_eo_ao`, `pfrda_gradea`) — naming finalized as `{institution}_{exam}`, papers
 scoped by a composite key (DECIDE-21). `upsc_cse`'s Optional papers are split into Paper I/II

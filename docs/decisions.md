@@ -1057,3 +1057,57 @@ moved between branches mid-task as that session committed. Verified `data/core.d
 git-untracked (checkouts never touch it) before proceeding, then fast-forwarded this
 task's branch onto the finished DECIDE-35 commit rather than diverging from it. Flagging
 here so a future reader isn't surprised this branch's first parent is DECIDE-35's commit.
+
+### DECIDE-37 — Phase 2 (hybrid retrieval + API) built; PFRDA/EPFO practice sequenced as an additive Devthorium path, not a full Recall cutover {#decide-37}
+**Date:** 2026-09-17 | **Session:** S9
+
+**Decision:** Built PLAN.md's Phase 2 exactly as spec'd —
+`src/retrieval/hybrid_engine.py` (`LocalHybridEngine`: LanceDB dense vector + LanceDB
+native FTS + RRF k=60 + FlashRank cross-encoder rerank, score floor →
+`insufficient_grounding` per DECIDE-10, `source_type='ai_generated'`/`is_current=False`
+exclusion, auto-merge via `sections.full_text` per DECIDE-14) and `src/api/` (FastAPI:
+`/exams /papers /topics /search /pyq /topic/{id}/brief /verify_citation /ingest`, bound
+to `127.0.0.1` only). Also added `POST /attempt` (`src/api/routes_attempts.py`) — beyond
+the original Phase 2 spec — so `scripts/quiz.py`'s CLI and any future web consumer share
+one real `user_attempts`/`topic_coverage` signal instead of forking a second attempt
+history for the same real questions. `scripts/inventory.py` built first, per its own
+purpose: it immediately surfaced that `chunks` (LanceDB) has **zero PFRDA rows and only
+125 thin EPFO rows** against 470/660 real `pyq_bank` rows — so `/search`-based grounding
+is effectively unusable for PFRDA today and thin for EPFO; `/pyq` (structured, abundant)
+is the real foundation for both exams, not `/search`.
+
+For getting PFRDA/EPFO MCQ practice into Devthorium ("Recall") specifically: build it as
+a **new, additive code path**, not a unification of Devthorium's existing
+Chroma/`syllabus.json` pipeline. Two research passes this session verified Devthorium's
+hardcoding (`DB_PATH`/`syllabus.json`/one Chroma collection, zero `exam_id` concept
+anywhere) spans 6+ route files and 30+ scripts — a full refactor is real, multi-session
+work with regression risk to the UPSC Prelims flow Rahul studies from daily, for zero
+PFRDA/EPFO benefit (that pipeline serves neither exam today). PFRDA/EPFO have nothing to
+migrate *from* in Devthorium, so an additive path costs zero migration risk to the
+working product and gives PLAN.md's own Phase 3 ("migrate + cut over Recall," which
+already assumes prove-then-migrate, not simultaneous cutover) a lower-stakes proving
+ground later.
+
+Also found (not yet fixed as a design change, only patched at read-time — see BUG-15):
+Devthorium's existing "PYQ pattern dimensions" (`generate_syllabus_dimensions.py`) are not
+actually derived from real PYQ text — it sends Haiku only `{subtopic_id, name}` and asks
+it to invent dimensions from training knowledge, zero real PYQ/Chroma content passed in.
+For PFRDA/EPFO (far more niche than UPSC Prelims) this is a real quality risk, so any new
+dimension-generation script for these exams should ground itself in nyaya-core's real
+`/pyq` corpus instead — ideas for this are in `~/.claude/plans/functional-stirring-galaxy.md`
+(Phase B), not yet built this session.
+
+**Rationale:** Matches this project's own established build discipline (verify against
+real data before designing on top of it — `inventory.py` existing specifically prevents
+the "assumed /search would just work" failure mode) and Rahul's explicit choice to build
+toward the full unified-platform vision without destabilizing what already works daily.
+**Rejected:** Simultaneous full Recall cutover (unification-first) — rejected as
+disproportionate risk to a live daily-use product for zero immediate PFRDA/EPFO benefit.
+**Verification:** 127/127 tests passing (101 pre-existing + 26 new across
+`tests/test_hybrid_engine.py`, `tests/test_api.py`, and `tests/test_quiz.py`'s new
+`normalize_options` cases) — includes a live regression test against the real local DB
+confirming `search("...", "pfrda_gradea")` returns `insufficient_grounding=True` rather
+than crashing or silently returning an empty-but-"ok" result.
+**Consequence:** BUG-15 (found + fixed in the same session). Phases B (real-PYQ-grounded
+dimension generation), C (Devthorium exam-context plumbing), and D (UI exam switching) —
+all Devthorium-side — are the next unblocked work, not yet started.

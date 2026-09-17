@@ -1,6 +1,7 @@
 .env
 data/lancedb/
 data/core.db
+data/.flashrank_cache/
 data/*.log
 data/flagged_chunks.jsonl
 data/raw_ingest_staging/

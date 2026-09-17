@@ -13,6 +13,7 @@ from quiz import (
     ACCURACY_PARTIAL,
     compute_coverage_depth,
     fetch_candidate_questions,
+    normalize_options,
     recompute_topic_coverage,
     select_questions,
 )
@@ -75,6 +76,31 @@ def _seed(conn: sqlite3.Connection) -> None:
         ],
     )
     conn.commit()
+
+
+# --- normalize_options: real per-exam storage-shape difference (found live) ---
+
+
+def test_normalize_options_passes_through_dict_shape_unchanged():
+    """pfrda_gradea's real storage shape."""
+    assert normalize_options('{"A": "x", "B": "y"}') == {"A": "x", "B": "y"}
+
+
+def test_normalize_options_letters_a_list_shape():
+    """rbi_depr / upsc_epfo_apfc_eo_ao's real storage shape — a plain JSON list, no
+    letters. Before this fix, print_question crashed on every row shaped like this
+    (`options[letter]` on a list with a string key)."""
+    assert normalize_options('["Q-P-R-S", "P-Q-S-R", "R-S-P-Q", "S-R-Q-P"]') == {
+        "A": "Q-P-R-S",
+        "B": "P-Q-S-R",
+        "C": "R-S-P-Q",
+        "D": "S-R-Q-P",
+    }
+
+
+def test_normalize_options_empty_or_none_is_empty_dict():
+    assert normalize_options(None) == {}
+    assert normalize_options("") == {}
 
 
 # --- compute_coverage_depth: all three score bands ---
