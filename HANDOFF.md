@@ -22,14 +22,22 @@ Fixed via a shared `normalize_options()` (`scripts/quiz.py`), reused by the new
 
 **This work is part of a larger, already-approved plan** (Rahul asked for PFRDA/EPFO MCQ
 practice "ASAP" and explicitly chose the full-architecture path over a quick interim UI):
-`~/.claude/plans/functional-stirring-galaxy.md`. Phase A (this session, nyaya-core-only)
-is done. **Phases B/C/D are Devthorium-side, not started:** B = real-PYQ-grounded
-dimension generation (new `generate_dimensions_from_pyqs.py`, calling nyaya-core's
-`/pyq` — NOT `/search`, per the chunk-gap finding above); C = exam-context plumbing in
-Devthorium's live `quiz.py` generation path only (additive, existing UPSC
-Prelims/Chroma path untouched — see DECIDE-37 for why unification was rejected for now);
-D = UI exam switching in Devthorium's frontend. Read the plan file for full file-level
-detail before starting Phase B.
+`~/.claude/plans/functional-stirring-galaxy.md`. **Update, same session, after this
+entry was first written: Phases A, B, and most of D are now DONE, merged, and pushed —
+not "next steps" anymore.** Phase A (nyaya-core, this repo) shipped as above. Phase B
+(`Devthorium/scripts/generate_dimensions_from_pyqs.py`, calling this platform's
+`/topics`+`/pyq`) ran at full scale: PFRDA 121 topics/383 real dimensions (57 flagged
+`insufficient_pyq_evidence`, mostly Research-stream stats with zero real content),
+EPFO 28 topics/345 dimensions (1 flagged) — committed to Devthorium `main`
+(`data/dimensions/{exam_id}.json`). Phase C's Mode 1 (real-PYQ drill, zero LLM calls —
+`backend/nyaya_core_client.py` + `backend/routes/nyaya_pyq_drill.py`) and Phase D's UI
+(`web/src/app/nyaya/page.tsx`, in both nav bars) shipped together as Devthorium PR #57,
+reviewed and merged to `main` by Rahul. **Only Phase C's Mode 2 (AI-generated quizzes,
+matching UPSC Prelims' dimension-based generation) remains undone** — deferred
+deliberately: Devthorium's `quiz.py` has no single `exam_id`-branchable choke point
+(`subject_id`/`subtopic_id` threaded through many nested functions), confirmed by
+reading the full 1517-line file, not assumed. Tracked as Devthorium `FEATURES.md` #22.
+Read the plan file for the original file-level design before picking that up.
 
 **DECIDE-31 (2026-09-16, external session): the 3 real PFRDA paper-books are now ingested**
 — 454 real MCQs + 16 descriptive prompts, `pyq_bank`, `source_type='coaching_derived'`
