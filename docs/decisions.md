@@ -1111,3 +1111,34 @@ than crashing or silently returning an empty-but-"ok" result.
 **Consequence:** BUG-15 (found + fixed in the same session). Phases B (real-PYQ-grounded
 dimension generation), C (Devthorium exam-context plumbing), and D (UI exam switching) —
 all Devthorium-side — are the next unblocked work, not yet started.
+
+### DECIDE-38 — Cloud Run hosting scaffold built for nyaya-core (branch, not merged) {#decide-38}
+**Date:** 2026-09-18 | **Session:** current
+
+**Decision:** Rahul wants off paid Railway for the whole Nyaya ecosystem, onto free hosting
+(Vercel for frontends + Google Cloud Run free tier for backends, per a separately-researched
+recommendation) using his domain FluxDev.in. A dedicated agent scaffolded this for all three
+sibling repos on a local `infra/cloud-run-scaffold` branch — **not merged to `main`, not
+pushed, no real cloud resources created.**
+
+**For nyaya-core specifically:** `src/api/main.py`'s bind changed from `127.0.0.1`-only to
+`0.0.0.0:$PORT` (Cloud Run's required convention) — access control moves from "only
+reachable on this machine" to Cloud Run IAM/ingress restriction instead. Added `Dockerfile`,
+`.dockerignore`, `docs/DEPLOY.md` (bucket creation, `gsutil rsync` of `core.db`/`lancedb/`,
+`gcloud run deploy --no-allow-unauthenticated` + IAM invoker binding).
+
+**Real gap found, not fixed:** `Devthorium/backend/nyaya_core_client.py` sends no auth
+header — once nyaya-core is IAM-restricted on Cloud Run, every call from Devthorium will
+403 until it's taught to attach a Google identity token. This is a real code change, not
+attempted by the scaffolding agent (out of scope for scaffolding-only work).
+
+**Standing gate, not yet cleared:** `docs/FOUNDATION.md`'s own approval gate — "anything
+that makes this platform reachable by anyone but Rahul (a public API, a cloud deployment)"
+— is exactly what this scaffold prepares to do. Deploying it for real requires Rahul to
+consciously clear that gate first, not just run the commands in `docs/DEPLOY.md`.
+
+**Not done:** actual deployment (needs Rahul's own GCP project/billing/domain access), the
+identity-token auth fix above, and revisiting DECIDE-03 (Scribe's batch-sync-only access to
+nyaya-core, currently justified by "Railway can't reach a local-only service" — once
+nyaya-core has a real hosted URL, that constraint goes away, but the live-sync redesign
+itself is a separate, unbuilt task).

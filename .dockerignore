@@ -1,0 +1,21 @@
+# Never bake local data, secrets, or dev artifacts into the image -- data/ is a GCS
+# FUSE mount on Cloud Run (see docs/DEPLOY.md) / a bind mount locally, always supplied
+# at container-start time, never baked in at build time.
+data/
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+.git/
+.gitignore
+
+.env
+
+*.md
+docs/
+Dockerfile
+.dockerignore

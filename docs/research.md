@@ -368,3 +368,62 @@ research's own recommendation.
 Full detail (per-topic PYQ-search log, the complete overlap table, and the original DEPR
 Phase-II structural-dispute finding this research couldn't resolve on its own):
 `docs/research/RESEARCH-11-pfrda-research-stream-sync.md`
+
+### RESEARCH-12 — Remaining unlinked-topic audit: EPFO/PFRDA/RBI DSIM cross-exam overlap {#research-12}
+**Date:** 2026-09-18 | **Session:** current
+
+**Question:** HANDOFF flagged that IES/RBI/EPFO/PFRDA each carry separate, unlinked topic
+vocabularies even where they conceptually overlap. DECIDE-32 already linked the
+RBI-Grade-B/DEPR/CSE/IES economics cluster. What's left — does EPFO (28 topics) or RBI DSIM
+(10 topics) genuinely overlap PFRDA (121 topics) or the canonical GS cluster anywhere DECIDE-29
+didn't already rule out?
+
+**Method:** Read every top-level topic for EPFO, RBI DSIM, and PFRDA directly from `core.db`
+(not from docs) and checked each candidate pair for real depth/scope match, the same
+discipline DECIDE-29 established (a shared name is not sufficient — PFRDA's own
+`pfrda_economics_basic` topic literally carries a note recording this: "UG-level... NOT
+linked to postgrad-depth canonical Macro Theory topics").
+
+**Findings — one real, substantial candidate, several explicit non-matches:**
+
+1. **Real candidate: objective English-language test content.** EPFO already carries an
+   unprefixed, canonical-shaped `general_english`/`grammar_correctness`/`vocabulary_usage`
+   family (92 real tagged PYQs) and PFRDA carries its own `pfrda_english_language` family —
+   cloze/error-spotting/fill-blanks/para-jumble/RC/synonyms/word-interchange (40 real tagged
+   PYQs). Both are the same genre — non-technical, objective-format competitive-exam English,
+   not exam-specific domain content — genuinely the strongest link candidate found. **Blocked
+   on a real granularity mismatch, not a depth mismatch**: EPFO's real PYQs only ever produced
+   3 coarse buckets; PFRDA's real PYQs produced 7 finer ones. Forcing EPFO's real questions
+   into PFRDA's finer buckets would invent categories EPFO's own data never evidenced;
+   collapsing PFRDA's into EPFO's 3 buckets would discard real signal DECIDE-31's bottom-up
+   subtopic derivation already captured. No merge executed — needs Rahul's call (see RISK-09).
+   RBI DEPR/DSIM's own `*_english_descriptive` topics were checked and excluded: that's essay/
+   precis writing, a different skill from objective grammar/vocabulary tests, not the same
+   content family despite the shared word "English."
+2. **Checked and explicitly rejected — commerce/accountancy.** EPFO's
+   `accountancy_fundamentals` (journal entries, trial balance, basic bookkeeping) vs. PFRDA's
+   `pfrda_commerce_accountancy`/`pfrda_companies_act` (company final accounts, ESOP/buyback,
+   Companies Act 2013 chapters) — a real depth mismatch, same class of trap DECIDE-29 exists
+   to catch. Not linked.
+3. **Checked and explicitly rejected — current affairs / general awareness.** EPFO's
+   `epfo_current_events` (national/international current events, UPSC-Prelims-style) vs.
+   PFRDA's `pfrda_general_awareness_financial` (banking-GK-flavored: abbreviations, regulatory
+   bodies, static GK) — different real focus, not the same content despite both being
+   "current affairs." Not linked. (Consistent with DECIDE-29's original finding that drove
+   EPFO off the canonical `current_affairs` topic in the first place.)
+4. **RBI DSIM vs. PFRDA Research stream** — already assessed by RESEARCH-11/DECIDE-32
+   (notes-only, unverified depth match); nothing new found this pass.
+5. **UPSC IES has zero cross-exam or intra-taxonomy overlap left to link** — its 29
+   IES-specific top-level topics (agriculture, labour, welfare economics, etc.) all carry 0
+   real PYQs (IES has never been ingested at all, a pre-existing known state, not new). **Side
+   finding, not actioned:** IES's own 156-topic import (DECIDE-21) still carries two topic_ids
+   that look like exact real-world duplicates of topics DECIDE-32 later linked in separately —
+   `environmental_economics` (IES-only, 0 PYQs) alongside the canonical, cross-linked
+   `env_econ` (4 exams, 2 real PYQs); `international_economics` (IES-only, 0 PYQs) alongside
+   canonical `intl_econ` (5 exam-links across 4 exams, 10 real PYQs). Both pairs are 0-content
+   on the IES-native side, so merging them is zero-data-loss whenever it happens, but not
+   verified identical in scope — flagging for a deliberate check, not silently merging two
+   topic rows without confirming they mean the same thing.
+
+**Applied to:** nothing executed yet — this is the research pass; see RISK-09 for the one
+decision needed before the English-taxonomy link can be built.
