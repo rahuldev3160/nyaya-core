@@ -100,3 +100,25 @@ before the next PFRDA-related session closes.
 match, the UG/PG depth-mismatch that blocked DECIDE-30's broader link doesn't apply to
 primary-source Budget/Survey content). Real PFRDA frequency for this topic explicitly left
 unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.
+
+### RISK-09 — EPFO/PFRDA English-taxonomy granularity mismatch blocks a real, substantial cross-link {#risk-09}
+**Date:** 2026-09-18 | **Session:** current | **Status:** OPEN
+
+**Risk:** RESEARCH-12 found EPFO's `general_english` family (92 real PYQs, 3 buckets:
+grammar/vocab/RC) and PFRDA's `pfrda_english_language` family (40 real PYQs, 7 finer buckets:
+cloze/error-spotting/fill-blanks/para-jumble/RC/synonyms/word-interchange) are genuinely the
+same content type — the strongest real cross-exam link candidate found — but at two different
+real granularities, both derived bottom-up from each exam's own actual PYQs. Neither direction
+of a forced merge is safe: collapsing PFRDA into EPFO's 3 buckets discards real signal;
+expanding EPFO into PFRDA's 7 buckets invents categories EPFO's own 92 real questions never
+evidenced. Left unresolved, 132 real, taggable questions stay artificially split into two
+unlinked vocabularies with no query connecting them.
+**Mitigation:** Needs Rahul's call, not a unilateral pick — options are (a) leave both
+taxonomies separate (no false precision either way, but no cross-exam query benefit), (b) a
+real re-read of all 92 EPFO English PYQs to classify each into PFRDA's 7 real buckets (extra
+Haiku pass, evidence-based not invented, but costs real API calls and re-tags live data), or
+(c) the reverse — collapse PFRDA's 7 into EPFO's 3 (cheaper, but throws away DECIDE-31's
+already-built bottom-up granularity for PFRDA's own coverage-intelligence use). No default
+chosen; flag before any English-content work in either exam proceeds further.
+**Escalation trigger:** Before merging, deleting, or retagging any topic in either family.
+unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.
