@@ -124,3 +124,18 @@ chosen; flag before any English-content work in either exam proceeds further.
 **Resolution:** Rahul chose option (a) — leave both taxonomies separate. No merge, no
 retagging, no query benefit gained; revisit only if a real reason to unify surfaces later.
 unconfirmed, not asserted — see DECIDE-33 and GL-07 for why.
+
+### RISK-10 — AI question bank generation blocked on Anthropic account credit balance {#risk-10}
+**Date:** 2026-09-18 | **Session:** S10 | **Status:** Open, accepted by Rahul
+
+**Risk:** A full-scale `generate_ai_pyq_bank.py` run (DECIDE-38) ran the account's credit
+balance to zero after ~68/383 PFRDA slots (271 real questions written, $5.55 real cost).
+Extrapolating that real per-slot rate across all 728 slots (both exams) puts a full run at
+~$55-60 total — matching the original estimate given to Rahul. EPFO got zero questions.
+**Mitigation:** The run is fully idempotent (`ai_question_dimensions` + `pyq_bank`
+row-count checks per (topic, dimension) pair) — resuming after credits are added is one
+command per exam, picks up exactly where it left off, no rework and no data loss.
+**Resolution:** Rahul explicitly declined to add credits for now ("I am not looking to add
+more credits as of now"). PFRDA stays at 271 AI questions (partial topic coverage);
+EPFO stays at 0. No further action pending — revisit only if/when Rahul decides to fund
+the rest of the run.

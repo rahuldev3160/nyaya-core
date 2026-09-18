@@ -336,6 +336,62 @@ silently disagree on a JSON field's internal structure. Any new consumer of a
 multi-source JSON column should check the shape actually stored for every exam it will
 touch, not just the one exam its author happened to test against.
 
+### BUG-16 — `max_tokens=4096` truncated JSON output mid-generation {#bug-16}
+**Date:** 2026-09-18 | **Session:** S10 | **Fixed:** Yes
+
+**Root cause:** `claude-sonnet-5` emits a leading `ThinkingBlock` that competes with the
+JSON response for the same `max_tokens` budget in `generate_ai_pyq_bank.py`'s
+`call_model()`. 4096 was too tight — 2/5 pilot calls truncated before any JSON array
+closed, an identical failure class to BUG-14 (2026-09-09, RBI DEPR ingestion: a dense-MCQ
+response cut off mid-string at a low `max_tokens`).
+**Fix:** Raised to 8192; also fixed `call_model()` to search `response.content` for the
+first `type=="text"` block instead of assuming `content[0]` (the thinking block is
+`content[0]` when present).
+**Lesson:** Any new Claude API call built against a reasoning-capable model needs a
+`max_tokens` budget sized for thinking + output, not output alone, and must never assume
+a fixed block index in the response — check `.type` explicitly. Logged as a pattern for
+reuse beyond this project (see `~/.claude/knowledge/patterns/PATTERNS.md`).
+
+### BUG-17 — Retry logic burned ~300 slots retrying a non-retryable billing error {#bug-17}
+**Date:** 2026-09-18 | **Session:** S10 | **Fixed:** Yes
+
+**Root cause:** The Anthropic account ran out of credit balance partway through a
+full-scale run (`generate_ai_pyq_bank.py`, PFRDA: 383 slots). `call_model()`'s retry loop
+treated `anthropic.BadRequestError` ("credit balance too low") the same as a transient
+`APIError` — every one of the ~300 remaining slots retried 3 times (with a 5s delay each)
+against a guaranteed-to-fail request before the run was noticed and killed manually.
+**Fix:** Added `InsufficientCreditsError`, raised immediately (no retry) on this specific
+error and propagated up through `generate_one()` to the main `as_completed` loop, which
+now cancels remaining futures and stops the whole run with a clear message instead of
+continuing slot-by-slot. Verified live against the still-exhausted account: stops in
+seconds instead of retrying.
+**Lesson:** A batch script's retry loop must distinguish transient failures (rate limits,
+5xx, timeouts) from non-retryable ones (bad request, auth, billing) — retrying the latter
+wastes real wall-clock time for zero chance of success, and at scale (hundreds of items)
+that waste compounds into real delay. Logged as a pattern for reuse beyond this project.
+
+### BUG-18 — ~35% of PFRDA's real MCQ rows have broken/incomplete `options` {#bug-18}
+**Date:** 2026-09-18 | **Session:** S10 | **Fixed:** No — worked around at the Devthorium
+serving layer, not fixed at the source
+
+**Root cause:** Found live via direct query against `pyq_bank`: 140/454 PFRDA MCQ rows
+have `options` down to a single `{letter: text}` entry, 17 have `options=NULL`, 1 has only
+2 options — mostly DECIDE-31's reasoning/puzzle-section rows from the 2025 paper-book,
+where the source coaching PDF's structuring pass appears to have only captured the solved
+answer, not the full option set. A sample also showed `question_text` reading as a
+paraphrased/decontextualized summary (e.g. "Odd-one-out among Pooja/Shalu/Deepak/Ankit/
+Ekta (same 8-floor puzzle)") rather than literal exam text — likely the same extraction
+pass, not verified further this session.
+**Fix:** Not fixed at the source. Devthorium's `nyaya_pyq_drill.py::_is_answerable_mcq()`
+now filters any row with `options` shorter than 4 entries out of what gets served — real
+users never see the broken rows, but the 158 broken rows themselves are still sitting in
+`pyq_bank` unfixed.
+**Lesson:** A coaching-derived structuring pass for non-standard question formats (logic
+puzzles that reference shared context across several questions) needs its own explicit
+validation step, not just the standard 4/5-option MCQ assumption used everywhere else in
+this pipeline. Re-extracting these 158 rows properly from the source PDF (with full puzzle
+context preserved) is real, scoped, unstarted work — flagged to Rahul, not yet approved.
+
 **Format for future entries:**
 ```
 ### BUG-XX — Short description {#bug-xx}

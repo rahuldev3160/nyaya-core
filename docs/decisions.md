@@ -1111,3 +1111,35 @@ than crashing or silently returning an empty-but-"ok" result.
 **Consequence:** BUG-15 (found + fixed in the same session). Phases B (real-PYQ-grounded
 dimension generation), C (Devthorium exam-context plumbing), and D (UI exam switching) —
 all Devthorium-side — are the next unblocked work, not yet started.
+
+### DECIDE-38 — Persisted, indexed AI-generated question bank in `pyq_bank` {#decide-38}
+**Date:** 2026-09-18 | **Session:** S10 | **Status:** Active
+
+**Decision:** AI-generated PFRDA/EPFO practice questions are stored directly in `pyq_bank`
+(`source_type='ai_generated'`, `status='unverified'` by default) rather than a new
+dedicated table, and the generation pipeline (`scripts/generate_ai_pyq_bank.py`,
+`prompts/ai_pyq_bank_quiz.txt`) lives in nyaya-core, not Devthorium. `unverified` is not a
+serving gate — AI rows are served immediately, same as real content; a new optional
+`scripts/review_ai_questions.py` lets Rahul spot-check and flip specific rows to
+`verified`/`void`. Structured per-option rationale is written into `pyq_explanations` at
+generation time (closing DECIDE-23's long-open "batch generator never built" gap). No
+external sourcing — generation grounds strictly in the syllabus + real PYQs already
+ingested (Rahul's explicit choice).
+**Rationale:** `source_type='ai_generated'` was already a first-class value in
+`src/schema/models.py`'s `SourceType` literal, anticipated but never used — reusing
+`pyq_bank` means every existing consumer (indexing, `topic_coverage`, the `/pyq` API, the
+Devthorium drill's serving filter) works with zero new query surface. Building the
+pipeline in nyaya-core (not Devthorium, where Devthorium's own unmerged PR #58 put an
+equivalent live/ephemeral version) matches the documented target architecture — "nyaya-
+core is the single indexed data platform, Recall a thin consumer." Gating on `status='verified'`
+before serving was rejected as impractical: spot-checking every generated question before
+use isn't realistic at exam-prep scale; a UI badge (`source_type`) is the honesty
+mechanism instead.
+**Rejected:** A new dedicated `ai_generated_bank` table (would duplicate indexing/serving
+logic for no real benefit); gating on human review before serving (too slow for the real
+urgency — PFRDA/EPFO exams have near-term dates); reviving Devthorium PR #58's ephemeral
+per-session approach (throws away every generated question, no reusable bank).
+**Verification:** Piloted live on `pfrda_reasoning_syllogism` (7 questions written,
+verified via `/pyq` and end-to-end in Devthorium's `/nyaya` drill UI in a real browser).
+Full-scale run attempted same session — see BUG-16/17 in `docs/bugs.md` and RISK-10 in
+`docs/risks.md` for what actually happened.
