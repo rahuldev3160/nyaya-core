@@ -38,6 +38,8 @@ import re
 import sqlite3
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -184,6 +186,14 @@ def build_prompt(exam_name: str, topic: dict, dimension: dict, n_needed: int,
     )
 
 
+class InsufficientCreditsError(RuntimeError):
+    """The Anthropic account has no balance left -- found live, 2026-09-18: a full-scale
+    run silently burned ~300 slots' worth of 3x-retried, guaranteed-to-fail calls after
+    hitting this (BadRequestError, non-retryable) before it was noticed and killed
+    manually. Retrying never helps here, and neither does continuing to the next slot --
+    the whole run must stop immediately so this doesn't happen silently again."""
+
+
 def call_model(client: anthropic.Anthropic, prompt: str) -> tuple[str, dict]:
     last_exc: Exception | None = None
     for attempt in range(RETRY_LIMIT):
@@ -205,6 +215,10 @@ def call_model(client: anthropic.Anthropic, prompt: str) -> tuple[str, dict]:
             if text_block is None:
                 raise RuntimeError("no text block in response content")
             return text_block.text.strip(), usage
+        except anthropic.BadRequestError as exc:
+            if "credit balance" in str(exc).lower():
+                raise InsufficientCreditsError(str(exc)) from exc
+            raise RuntimeError(f"Bad request (not retryable): {exc}") from exc
         except anthropic.APIError as exc:
             last_exc = exc
             if attempt < RETRY_LIMIT - 1:
@@ -285,6 +299,59 @@ def write_question(conn: sqlite3.Connection, exam_id: str, mcq: GeneratedMCQ, se
     return question_id
 
 
+@dataclass
+class WorkItem:
+    topic: dict
+    dimension: dict
+    n_needed: int
+    real_examples_str: str
+    existing_texts: list[str] = field(default_factory=list)
+    existing_count: int = 0
+
+
+def build_work_items(conn: sqlite3.Connection, exam_id: str, topics: list[dict],
+                      n_per_dimension: int, force: bool) -> list[WorkItem]:
+    """Pure read/preparation pass — no network calls — so the slow model-calling phase
+    can run concurrently afterward without any shared-connection threading concerns."""
+    items: list[WorkItem] = []
+    for topic in topics:
+        topic_id = topic["topic_id"]
+        dims = topic.get("dimensions", [])
+        if topic.get("insufficient_pyq_evidence") and not force:
+            print(f"SKIP {topic_id}: insufficient_pyq_evidence (use --force to override)")
+            continue
+        if not dims:
+            continue
+
+        real_examples_str = format_real_pyq_examples(fetch_real_pyq_examples(conn, exam_id, topic_id))
+        # Snapshot at prep time -- concurrent sibling-dimension calls for the same topic
+        # won't see each other's freshly-generated text, a minor, acceptable trade-off
+        # (different dimensions target different testable angles anyway; the real hard
+        # duplicate guard is parse_and_validate's per-item token-overlap rejection).
+        existing_texts = fetch_existing_ai_question_texts(conn, topic_id)
+
+        for dim in dims:
+            existing_count = existing_ai_count_for_dimension(conn, dim["id"])
+            n_needed = n_per_dimension - existing_count
+            if n_needed > 0:
+                items.append(WorkItem(topic, dim, n_needed, real_examples_str, list(existing_texts), existing_count))
+    return items
+
+
+def generate_one(client: anthropic.Anthropic, exam_name: str, item: WorkItem) -> tuple[WorkItem, list, dict, str | None]:
+    """Runs in a worker thread: pure model call + parse/validate, no DB access."""
+    prompt = build_prompt(exam_name, item.topic, item.dimension, item.n_needed,
+                           item.real_examples_str, item.existing_texts)
+    try:
+        raw, usage = call_model(client, prompt)
+    except InsufficientCreditsError:
+        raise  # let this propagate -- caller must stop the whole run, not just this item
+    except RuntimeError as exc:
+        return item, [], {"input_tokens": 0, "output_tokens": 0}, str(exc)
+    accepted = parse_and_validate(raw, item.topic["topic_id"], item.dimension["id"], item.existing_texts)
+    return item, accepted, usage, None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exam_id", required=True, choices=list(EXAM_NAMES))
@@ -294,6 +361,8 @@ def main() -> None:
                          help="cap how many topics to process this run (priority order)")
     parser.add_argument("--force", action="store_true",
                          help="also generate for topics flagged insufficient_pyq_evidence")
+    parser.add_argument("--concurrency", type=int, default=6,
+                         help="parallel model calls -- pure network work, no shared DB connection")
     parser.add_argument("--dry_run", action="store_true", help="call the model, print results, write nothing")
     args = parser.parse_args()
 
@@ -318,42 +387,43 @@ def main() -> None:
     conn.row_factory = sqlite3.Row
 
     exam_name = EXAM_NAMES[args.exam_id]
+    work_items = build_work_items(conn, args.exam_id, topics, args.n_per_dimension, args.force)
+    print(f"\n{len(work_items)} (topic, dimension) slots to generate, concurrency={args.concurrency}.\n")
+
     total_written = total_flagged = 0
     total_usage = {"input_tokens": 0, "output_tokens": 0}
 
-    for topic in topics:
-        topic_id = topic["topic_id"]
-        dims = topic.get("dimensions", [])
-        if topic.get("insufficient_pyq_evidence") and not args.force:
-            print(f"SKIP {topic_id}: insufficient_pyq_evidence (use --force to override)")
-            continue
-        if not dims:
-            continue
-
-        real_examples_str = format_real_pyq_examples(
-            fetch_real_pyq_examples(conn, args.exam_id, topic_id)
-        )
-        existing_texts = fetch_existing_ai_question_texts(conn, topic_id)
-
-        for dim in dims:
-            existing_count = existing_ai_count_for_dimension(conn, dim["id"])
-            n_needed = args.n_per_dimension - existing_count
-            if n_needed <= 0:
-                continue
-
-            print(f"{topic_id} / {dim['id']}: generating {n_needed} (have {existing_count}/{args.n_per_dimension})")
-            prompt = build_prompt(exam_name, topic, dim, n_needed, real_examples_str, existing_texts)
+    stopped_early = False
+    with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+        futures = {pool.submit(generate_one, client, exam_name, item): item for item in work_items}
+        for i, future in enumerate(as_completed(futures), start=1):
+            item = futures[future]
+            topic_id, dim_id = item.topic["topic_id"], item.dimension["id"]
             try:
-                raw, usage = call_model(client, prompt)
-            except RuntimeError as exc:
-                print(f"  ERROR: {exc}")
+                _, accepted, usage, error = future.result()
+            except InsufficientCreditsError as exc:
+                print(f"\nSTOPPED: Anthropic account has no credit balance left ({exc}).\n"
+                      "Add credits, then rerun this exact command — it's idempotent and "
+                      "will pick up exactly where it left off, nothing is lost.")
+                for f in futures:
+                    f.cancel()  # only cancels not-yet-started futures; in-flight ones finish quietly
+                stopped_early = True
+                break
+            except Exception as exc:  # noqa: BLE001 -- a worker crash must not kill the whole run
+                print(f"[{i}/{len(work_items)}] {topic_id} / {dim_id}: WORKER ERROR: {exc}")
+                total_flagged += item.n_needed
                 continue
 
             total_usage["input_tokens"] += usage["input_tokens"]
             total_usage["output_tokens"] += usage["output_tokens"]
 
-            accepted = parse_and_validate(raw, topic_id, dim["id"], existing_texts)
-            total_flagged += max(n_needed - len(accepted), 0)
+            if error:
+                print(f"[{i}/{len(work_items)}] {topic_id} / {dim_id}: ERROR: {error}")
+                total_flagged += item.n_needed
+                continue
+
+            total_flagged += max(item.n_needed - len(accepted), 0)
+            print(f"[{i}/{len(work_items)}] {topic_id} / {dim_id}: {len(accepted)}/{item.n_needed} accepted")
 
             if args.dry_run:
                 for mcq in accepted:
@@ -362,7 +432,7 @@ def main() -> None:
                     print(f"    Correct: {mcq.correct_answer.upper()}  |  {mcq.concept_summary}")
                 continue
 
-            seq = existing_count
+            seq = item.existing_count
             for mcq in accepted:
                 seq += 1
                 write_question(conn, args.exam_id, mcq, seq)
@@ -373,7 +443,9 @@ def main() -> None:
 
     input_cost = total_usage["input_tokens"] / 1_000_000 * 3.0
     output_cost = total_usage["output_tokens"] / 1_000_000 * 15.0
-    print(f"\nDone. {total_written} AI questions written, {total_flagged} generation slots flagged/rejected.")
+    status = "STOPPED EARLY (out of credits)" if stopped_early else "Done"
+    print(f"\n{status}. {total_written} AI questions written, {total_flagged} generation slots flagged/rejected"
+          f" out of {len(work_items)} total.")
     print(f"Usage: {total_usage['input_tokens']} input, {total_usage['output_tokens']} output tokens "
           f"(~${input_cost + output_cost:.2f} est., Sonnet pricing).")
 
