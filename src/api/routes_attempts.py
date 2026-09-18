@@ -9,7 +9,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from src.api.schemas import AttemptRequest, AttemptResponse
 
@@ -20,6 +20,27 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from quiz import log_attempt, recompute_topic_coverage  # noqa: E402 — reuse the real, tested logic
 
 router = APIRouter()
+
+
+@router.get("/attempts", response_model=list[str])
+def list_attempted_question_ids(exam_id: str = Query(...)):
+    """Distinct question_ids the user has already attempted for this exam — lets a
+    consumer (e.g. Devthorium's /nyaya/quiz) prefer unseen questions instead of serving
+    the same top-priority set every session. Read-only, additive; no schema change."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT ua.question_id
+            FROM user_attempts ua
+            JOIN pyq_bank pb ON pb.question_id = ua.question_id
+            WHERE pb.exam_id = ?
+            """,
+            (exam_id,),
+        ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
 
 
 @router.post("/attempt", response_model=AttemptResponse)

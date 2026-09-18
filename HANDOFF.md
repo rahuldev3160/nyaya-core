@@ -1,6 +1,95 @@
 # Project HANDOFF
 
-## Exact next step
+## Exact next step (2026-09-18, current — supersedes the entry below)
+
+**Blocked on Rahul: Anthropic account has no credit balance left.** A full-scale
+generation run for PFRDA hit `BadRequestError: "Your credit balance is too low"` partway
+through (after ~68/383 slots succeeded) — every later attempt failed the same way, and the
+retry logic (fixed since, see below) wasted real time retrying a non-retryable billing
+error before this was noticed and the run was killed manually. **Real, salvaged progress:
+271 AI questions written for PFRDA** (covering the topics processed before the wall) at a
+**real cost of $5.55** — extrapolating that same real per-slot rate (~$0.0816) across all
+728 total slots (383 PFRDA + 345 EPFO) puts a full run at **~$55-60 total**, matching the
+original estimate given to Rahul almost exactly (the estimate was right; the account
+balance was the problem). **EPFO got zero questions — it never got a chance to run before
+the balance was already dry.**
+
+**Once Rahul adds credits, resuming is one command per exam** (idempotent — tops up
+exactly where it left off, the 271 already-written PFRDA questions are untouched):
+```
+.venv/bin/python scripts/generate_ai_pyq_bank.py --exam_id pfrda_gradea
+.venv/bin/python scripts/generate_ai_pyq_bank.py --exam_id upsc_epfo_apfc_eo_ao
+```
+**Also fixed, same session:** the retry-and-continue behavior that let the run burn ~300
+slots' worth of guaranteed-to-fail retries after the wall was hit — `generate_ai_pyq_bank.py`
+now detects this specific error and stops the entire run immediately with a clear message
+(no more retries, no more silent slot-by-slot failure spam). Verified live against the
+still-exhausted account: stops in seconds instead of retrying.
+
+**Both PRs open, not merged:** nyaya-core PR #2 (`feature/ai-generated-pyq-bank`),
+Devthorium PR #60 (`fix/pfrda-epfo-drill-bugs-and-ai-badge`, fixes 5 real bugs Rahul found
+using the drill for the first time — see that repo's own HANDOFF.md).
+
+## Prior entry (2026-09-18, kept for design context)
+
+**AI-generated PFRDA/EPFO question bank built, piloted, working.**
+Replaces Devthorium's unmerged PR #58 approach (live, ephemeral, per-session generation,
+nothing persisted) with a batch-generated, persisted, indexed bank stored directly in
+`pyq_bank` (`source_type='ai_generated'`) — see `~/.claude/plans/keen-marinating-koala.md`
+for the full design rationale (why here not Devthorium, trust-semantics for
+`status`/`source_type`, why no external sourcing this round — Rahul's explicit call).
+
+**New:** `ai_question_dimensions` table (additive, links a question to its tested angle
+from Devthorium's `data/dimensions/{exam_id}.json` — a documented cross-repo read, same
+pattern as this repo's other `../Devthorium` references). `prompts/ai_pyq_bank_quiz.txt`
+(grounds in real PYQ examples pulled from this DB's own `pyq_bank`, asks for per-option
+rationale in the exact `StandaloneExplanation` shape `pyq_explanations` already expects —
+this closes DECIDE-23's long-open "batch generator never built" gap as a side effect).
+`scripts/generate_ai_pyq_bank.py` (idempotent — tops up (topic, dimension) pairs below
+`--n_per_dimension`, never duplicates; skips `insufficient_pyq_evidence`-flagged topics
+unless `--force`; rejects near-duplicate output via token-overlap against real PYQs and
+its own prior output). `scripts/review_ai_questions.py` (Rahul's optional spot-check CLI —
+verify/void a sampled row; **not a serving gate**, `unverified` AI rows are served
+immediately, same as real content, since exam urgency makes per-question review
+unrealistic at scale — the UI badge is the honesty mechanism instead).
+
+**Piloted for real, not just a dry run:** `pfrda_reasoning_syllogism` (3 real PYQs, 5
+dimensions, not flagged) — first dry-run attempt hit a real bug (`max_tokens=4096` too
+tight once claude-sonnet-5's leading `ThinkingBlock` competes for the same budget — 2/5
+calls truncated mid-JSON, BUG-14's exact failure class from real ingestion years ago).
+Fixed (`max_tokens=8192`), reran: 9/10 requested, 1 correctly rejected as too-similar. Real
+write run: **7 AI questions committed to `pyq_bank`**, all 4 clean options, real
+per-option rationale + elimination strategy in `pyq_explanations`, correctly excluded 1
+near-duplicate. Cost: ~$0.21-0.23 per topic (5 dimensions × 2 questions, Sonnet pricing).
+Verified end-to-end live: nyaya-core's own `/pyq` returns them with `source_type` intact;
+Devthorium's `/nyaya/quiz` (fixed earlier same session — see its own HANDOFF) serves all 7
+with zero code changes needed there; the browser renders a purple "AI-GENERATED" vs green
+"Real PYQ" badge correctly (`web/src/app/nyaya/page.tsx`).
+
+**Real next step:** scale `generate_ai_pyq_bank.py` across the rest of each exam's
+priority list (thinnest-real-coverage topics first — the script's default sort already
+does this) once Rahul reviews this pilot's quality. `pfrda_gradea` has 121 topics, 57
+already flagged `insufficient_pyq_evidence` (real zero-evidence topics like
+`pfrda_costing` — these stay dead ends until real content exists, by design, not a bug);
+`upsc_epfo_apfc_eo_ao` has 28 topics, 1 flagged. Estimate cost before a full run (rough:
+~$0.2-0.25/topic at n_per_dimension=2; scale linearly with `--n_per_dimension`).
+
+## Exact next step (2026-09-18, prior entry — now superseded, kept for context)
+**No code work is pending in this repo right now — 4 PRs are open across the 3-repo
+ecosystem, awaiting Rahul's review/merge and his own manual GCP/Vercel setup:**
+- nyaya-core PR #1 (`infra/cloud-run-scaffold`) — Cloud Run hosting scaffold
+- Devthorium PR #58 (`feature/pfrda-epfo-mode2-ai-quiz`) — AI-generated PFRDA/EPFO quizzes
+- Devthorium PR #59 (`infra/cloud-run-scaffold`) — Cloud Run + Vercel hosting scaffold
+- nyaya-scribe PR #1 (`infra/cloud-run-scaffold`) — Cloud Run hosting scaffold
+
+If resuming real build work before those land, the next unblocked candidates (no external
+blocker) are: **Eco-Optional migration** (`docs/eco_optional_migration_readiness.md` —
+re-curate a real taxonomy from Scribe's own 81 topic rows; 3 other blockers listed there)
+or **populate `pyq_completeness_ledger`** with real counts (starting with Eco-Optional's
+known gaps). Cross-exam topic linking is closed out for now — see RESEARCH-12/RISK-9,
+Rahul chose not to merge EPFO/PFRDA's English taxonomies.
+
+## Prior "exact next step" (2026-09-17, S9 — now superseded, kept for context)
 **DECIDE-37 (2026-09-17, S9): Phase 2 (hybrid retrieval + API) is built and tested —
 127/127 passing.** `src/retrieval/hybrid_engine.py` (dense+FTS+RRF+FlashRank rerank,
 score floor, trust-weighting, auto-merge) and `src/api/` (`/exams /papers /topics
@@ -32,11 +121,20 @@ EPFO 28 topics/345 dimensions (1 flagged) — committed to Devthorium `main`
 (`data/dimensions/{exam_id}.json`). Phase C's Mode 1 (real-PYQ drill, zero LLM calls —
 `backend/nyaya_core_client.py` + `backend/routes/nyaya_pyq_drill.py`) and Phase D's UI
 (`web/src/app/nyaya/page.tsx`, in both nav bars) shipped together as Devthorium PR #57,
-reviewed and merged to `main` by Rahul. **Only Phase C's Mode 2 (AI-generated quizzes,
-matching UPSC Prelims' dimension-based generation) remains undone** — deferred
-deliberately: Devthorium's `quiz.py` has no single `exam_id`-branchable choke point
-(`subject_id`/`subtopic_id` threaded through many nested functions), confirmed by
-reading the full 1517-line file, not assumed. Tracked as Devthorium `FEATURES.md` #22.
+reviewed and merged to `main` by Rahul.
+
+**2026-09-18: Phase C's Mode 2 (AI-generated quizzes) is now built too**, on Devthorium
+branch `feature/pfrda-epfo-mode2-ai-quiz` (not yet merged — awaiting Rahul's review, same
+pattern as PR #57). `quiz.py`'s single `POST /quiz/generate` endpoint turned out to branch
+cleanly at its own top (before any of the `subject_id`/`subtopic_id`-threaded nested
+functions run) — the earlier "no single choke point" read was about the internals, not the
+entry point. **Real finding, load-bearing:** nyaya-core has zero indexed LanceDB chunks for
+either exam (per `scripts/inventory.py`), so Mode 2 grounds itself in real `pyq_bank`
+content via `/topic/{id}/brief`, not `/search` — same conclusion DECIDE-37 already reached
+for Mode 1, now confirmed true for Mode 2's design too. Hard-errors (422) only when a topic
+has neither indexed chunks nor real PYQs. Full detail: Devthorium's own `FEATURES.md`/
+`ISSUES.md`/`HANDOFF.md` (ISSUE-030 also logged there, unrelated pre-existing bug found
+incidentally while verifying this).
 Read the plan file for the original file-level design before picking that up.
 
 **DECIDE-31 (2026-09-16, external session): the 3 real PFRDA paper-books are now ingested**

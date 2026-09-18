@@ -162,6 +162,17 @@ CREATE TABLE IF NOT EXISTS chunk_tags (
     PRIMARY KEY (chunk_id, tag_key)
 );
 CREATE INDEX IF NOT EXISTS idx_chunk_tags_kv ON chunk_tags(tag_key, tag_value);
+
+-- Links an AI-generated pyq_bank row (source_type='ai_generated') to the specific
+-- testable angle it targets, from data/dimensions/{exam_id}.json (built by
+-- generate_dimensions_from_pyqs.py). Additive only -- pyq_bank itself is untouched;
+-- a real PYQ row simply has no rows here. dimension_id is not a topics(topic_id) FK --
+-- dimension files are a separate, per-exam-flat registry, not part of the topic taxonomy.
+CREATE TABLE IF NOT EXISTS ai_question_dimensions (
+    question_id    TEXT NOT NULL REFERENCES pyq_bank(question_id),
+    dimension_id   TEXT NOT NULL,
+    PRIMARY KEY (question_id, dimension_id)
+);
 """
 
 # Real conducting bodies (DECIDE-22) — the queryable side of DECIDE-21's naming convention.
