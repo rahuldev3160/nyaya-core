@@ -2,8 +2,37 @@
 
 ## Exact next step (2026-09-18, current — supersedes the entry below)
 
-**AI-generated PFRDA/EPFO question bank built, piloted, working — not committed yet
-(uncommitted on local `main`, not a branch; Rahul hasn't been asked to commit/PR).**
+**Blocked on Rahul: Anthropic account has no credit balance left.** A full-scale
+generation run for PFRDA hit `BadRequestError: "Your credit balance is too low"` partway
+through (after ~68/383 slots succeeded) — every later attempt failed the same way, and the
+retry logic (fixed since, see below) wasted real time retrying a non-retryable billing
+error before this was noticed and the run was killed manually. **Real, salvaged progress:
+271 AI questions written for PFRDA** (covering the topics processed before the wall) at a
+**real cost of $5.55** — extrapolating that same real per-slot rate (~$0.0816) across all
+728 total slots (383 PFRDA + 345 EPFO) puts a full run at **~$55-60 total**, matching the
+original estimate given to Rahul almost exactly (the estimate was right; the account
+balance was the problem). **EPFO got zero questions — it never got a chance to run before
+the balance was already dry.**
+
+**Once Rahul adds credits, resuming is one command per exam** (idempotent — tops up
+exactly where it left off, the 271 already-written PFRDA questions are untouched):
+```
+.venv/bin/python scripts/generate_ai_pyq_bank.py --exam_id pfrda_gradea
+.venv/bin/python scripts/generate_ai_pyq_bank.py --exam_id upsc_epfo_apfc_eo_ao
+```
+**Also fixed, same session:** the retry-and-continue behavior that let the run burn ~300
+slots' worth of guaranteed-to-fail retries after the wall was hit — `generate_ai_pyq_bank.py`
+now detects this specific error and stops the entire run immediately with a clear message
+(no more retries, no more silent slot-by-slot failure spam). Verified live against the
+still-exhausted account: stops in seconds instead of retrying.
+
+**Both PRs open, not merged:** nyaya-core PR #2 (`feature/ai-generated-pyq-bank`),
+Devthorium PR #60 (`fix/pfrda-epfo-drill-bugs-and-ai-badge`, fixes 5 real bugs Rahul found
+using the drill for the first time — see that repo's own HANDOFF.md).
+
+## Prior entry (2026-09-18, kept for design context)
+
+**AI-generated PFRDA/EPFO question bank built, piloted, working.**
 Replaces Devthorium's unmerged PR #58 approach (live, ephemeral, per-session generation,
 nothing persisted) with a batch-generated, persisted, indexed bank stored directly in
 `pyq_bank` (`source_type='ai_generated'`) — see `~/.claude/plans/keen-marinating-koala.md`
