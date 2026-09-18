@@ -1,6 +1,51 @@
 # Project HANDOFF
 
-## Exact next step (2026-09-18, current)
+## Exact next step (2026-09-18, current — supersedes the entry below)
+
+**AI-generated PFRDA/EPFO question bank built, piloted, working — not committed yet
+(uncommitted on local `main`, not a branch; Rahul hasn't been asked to commit/PR).**
+Replaces Devthorium's unmerged PR #58 approach (live, ephemeral, per-session generation,
+nothing persisted) with a batch-generated, persisted, indexed bank stored directly in
+`pyq_bank` (`source_type='ai_generated'`) — see `~/.claude/plans/keen-marinating-koala.md`
+for the full design rationale (why here not Devthorium, trust-semantics for
+`status`/`source_type`, why no external sourcing this round — Rahul's explicit call).
+
+**New:** `ai_question_dimensions` table (additive, links a question to its tested angle
+from Devthorium's `data/dimensions/{exam_id}.json` — a documented cross-repo read, same
+pattern as this repo's other `../Devthorium` references). `prompts/ai_pyq_bank_quiz.txt`
+(grounds in real PYQ examples pulled from this DB's own `pyq_bank`, asks for per-option
+rationale in the exact `StandaloneExplanation` shape `pyq_explanations` already expects —
+this closes DECIDE-23's long-open "batch generator never built" gap as a side effect).
+`scripts/generate_ai_pyq_bank.py` (idempotent — tops up (topic, dimension) pairs below
+`--n_per_dimension`, never duplicates; skips `insufficient_pyq_evidence`-flagged topics
+unless `--force`; rejects near-duplicate output via token-overlap against real PYQs and
+its own prior output). `scripts/review_ai_questions.py` (Rahul's optional spot-check CLI —
+verify/void a sampled row; **not a serving gate**, `unverified` AI rows are served
+immediately, same as real content, since exam urgency makes per-question review
+unrealistic at scale — the UI badge is the honesty mechanism instead).
+
+**Piloted for real, not just a dry run:** `pfrda_reasoning_syllogism` (3 real PYQs, 5
+dimensions, not flagged) — first dry-run attempt hit a real bug (`max_tokens=4096` too
+tight once claude-sonnet-5's leading `ThinkingBlock` competes for the same budget — 2/5
+calls truncated mid-JSON, BUG-14's exact failure class from real ingestion years ago).
+Fixed (`max_tokens=8192`), reran: 9/10 requested, 1 correctly rejected as too-similar. Real
+write run: **7 AI questions committed to `pyq_bank`**, all 4 clean options, real
+per-option rationale + elimination strategy in `pyq_explanations`, correctly excluded 1
+near-duplicate. Cost: ~$0.21-0.23 per topic (5 dimensions × 2 questions, Sonnet pricing).
+Verified end-to-end live: nyaya-core's own `/pyq` returns them with `source_type` intact;
+Devthorium's `/nyaya/quiz` (fixed earlier same session — see its own HANDOFF) serves all 7
+with zero code changes needed there; the browser renders a purple "AI-GENERATED" vs green
+"Real PYQ" badge correctly (`web/src/app/nyaya/page.tsx`).
+
+**Real next step:** scale `generate_ai_pyq_bank.py` across the rest of each exam's
+priority list (thinnest-real-coverage topics first — the script's default sort already
+does this) once Rahul reviews this pilot's quality. `pfrda_gradea` has 121 topics, 57
+already flagged `insufficient_pyq_evidence` (real zero-evidence topics like
+`pfrda_costing` — these stay dead ends until real content exists, by design, not a bug);
+`upsc_epfo_apfc_eo_ao` has 28 topics, 1 flagged. Estimate cost before a full run (rough:
+~$0.2-0.25/topic at n_per_dimension=2; scale linearly with `--n_per_dimension`).
+
+## Exact next step (2026-09-18, prior entry — now superseded, kept for context)
 **No code work is pending in this repo right now — 4 PRs are open across the 3-repo
 ecosystem, awaiting Rahul's review/merge and his own manual GCP/Vercel setup:**
 - nyaya-core PR #1 (`infra/cloud-run-scaffold`) — Cloud Run hosting scaffold
